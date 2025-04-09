@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<GroundOverlay>
+<name>gpp_process_area</name>
+<Icon><href>parea_cdf_.png</href><viewBoundScale>0.75</viewBoundScale></Icon>
+	<LatLonBox>
+		<north>-33.1505629415972</north><south>-33.4957779415972</south><east>-70.024395132137</east><west>-70.227405132137</west>
+	</LatLonBox>
+</GroundOverlay></kml>

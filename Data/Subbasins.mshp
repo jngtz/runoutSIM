@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SAGA_METADATA>
+  <DATABASE>
+    <FIELDS>
+      <FIELD TYPE="INTEGER">ID</FIELD>
+      <FIELD TYPE="INTEGER">Main Basin ID</FIELD>
+      <FIELD TYPE="DOUBLE">Outlet X</FIELD>
+      <FIELD TYPE="DOUBLE">Outlet Y</FIELD>
+      <FIELD TYPE="DOUBLE">Perimeter</FIELD>
+      <FIELD TYPE="DOUBLE">Area</FIELD>
+      <FIELD TYPE="DOUBLE">Centroid X</FIELD>
+      <FIELD TYPE="DOUBLE">Centroid Y</FIELD>
+      <FIELD TYPE="DOUBLE">Mean Elevation</FIELD>
+      <FIELD TYPE="DOUBLE">Elevation Range</FIELD>
+      <FIELD TYPE="DOUBLE">Mean Flow Distance</FIELD>
+      <FIELD TYPE="DOUBLE">Maximum Flow Distance</FIELD>
+      <FIELD TYPE="DOUBLE">Concentration time (h)</FIELD>
+      <FIELD TYPE="STRING">Upslope Basins</FIELD>
+      <FIELD TYPE="INTEGER">Downslope Basins</FIELD>
+      <FIELD TYPE="STRING">Basin Type (Gravelius)</FIELD>
+      <FIELD TYPE="DOUBLE">Equivalent Rectangle (A)</FIELD>
+      <FIELD TYPE="DOUBLE">Equivalent Rectangle (B)</FIELD>
+      <FIELD TYPE="DOUBLE">Orographic Coefficient</FIELD>
+      <FIELD TYPE="DOUBLE">Massivity Coefficient</FIELD>
+    </FIELDS>
+  </DATABASE>
+  <SOURCE></SOURCE>
+  <HISTORY saga-version="7.9.0">
+    <TOOL library="ta_channels" id="2" name="Watershed Basins (Extended)">
+      <OPTION type="grid_system" id="PARAMETERS_GRID_SYSTEM" name="Grid System">
+        <CELLSIZE>12.5</CELLSIZE>
+        <XMIN>386048.361011815</XMIN>
+        <XMAX>404398.361011815</XMAX>
+        <YMIN>6293350.426483368</YMIN>
+        <YMAX>6331275.426483368</YMAX>
+      </OPTION>
+      <OPTION type="boolean" id="DISTANCE" name="Flow Distances">false</OPTION>
+      <INPUT type="grid" id="DEM" name="DEM" system="PARAMETERS_GRID_SYSTEM"/>
+      <INPUT type="grid" id="CHANNELS" name="Drainage Network" system="PARAMETERS_GRID_SYSTEM">
+        <TOOL library="ta_channels" id="0" name="Channel Network">
+          <OPTION type="grid_system" id="PARAMETERS_GRID_SYSTEM" name="Grid System">
+            <CELLSIZE>12.5</CELLSIZE>
+            <XMIN>386048.361011815</XMIN>
+            <XMAX>404398.361011815</XMAX>
+            <YMIN>6293350.426483368</YMIN>
+            <YMAX>6331275.426483368</YMAX>
+          </OPTION>
+          <OPTION type="choice" id="INIT_METHOD" name="Initiation Type" index="2">Greater than</OPTION>
+          <OPTION type="double" id="INIT_VALUE" name="Initiation Threshold">2000000.000000</OPTION>
+          <OPTION type="integer" id="DIV_CELLS" name="Tracing: Max. Divergence">5</OPTION>
+          <OPTION type="integer" id="MINLEN" name="Min. Segment Length">10</OPTION>
+          <INPUT type="grid" id="ELEVATION" name="Elevation" system="PARAMETERS_GRID_SYSTEM"/>
+          <INPUT type="grid" id="SINKROUTE" name="Flow Direction" system="PARAMETERS_GRID_SYSTEM">
+            <TOOL library="ta_preprocessor" id="4" name="Fill Sinks (Wang &amp; Liu)">
+              <OPTION type="grid_system" id="PARAMETERS_GRID_SYSTEM" name="Grid System">
+                <CELLSIZE>12.5</CELLSIZE>
+                <XMIN>386048.361011815</XMIN>
+                <XMAX>404398.361011815</XMAX>
+                <YMIN>6293350.426483368</YMIN>
+                <YMAX>6331275.426483368</YMAX>
+              </OPTION>
+              <OPTION type="double" id="MINSLOPE" name="Minimum Slope [Degree]">0.100000</OPTION>
+              <INPUT type="grid" id="ELEV" name="DEM" system="PARAMETERS_GRID_SYSTEM"/>
+              <OUTPUT type="grid" id="FDIR" name="Flow Directions">Flow Directions</OUTPUT>
+            </TOOL>
+          </INPUT>
+          <INPUT type="grid" id="INIT_GRID" name="Initiation Grid" system="PARAMETERS_GRID_SYSTEM">
+            <TOOL library="ta_compound" id="0" name="Basic Terrain Analysis">
+              <OPTION type="grid_system" id="PARAMETERS_GRID_SYSTEM" name="Grid System">
+                <CELLSIZE>12.5</CELLSIZE>
+                <XMIN>386048.361011815</XMIN>
+                <XMAX>404398.361011815</XMAX>
+                <YMIN>6293350.426483368</YMIN>
+                <YMAX>6331275.426483368</YMAX>
+              </OPTION>
+              <OPTION type="integer" id="THRESHOLD" name="Channel Density">5</OPTION>
+              <INPUT type="grid" id="ELEVATION" name="Elevation" system="PARAMETERS_GRID_SYSTEM"/>
+              <OUTPUT type="grid" id="FLOW" name="Total Catchment Area">Total Catchment Area</OUTPUT>
+            </TOOL>
+          </INPUT>
+          <OUTPUT type="grid" id="CHNLNTWRK" name="Channel Network">Channel Network</OUTPUT>
+        </TOOL>
+      </INPUT>
+      <OUTPUT type="shapes" id="V_SUBBASINS" name="Subbasins">Subbasins</OUTPUT>
+    </TOOL>
+  </HISTORY>
+  <FILE></FILE>
+  <DESCRIPTION></DESCRIPTION>
+  <PROJECTION>
+    <OGC_WKT>PROJCS["WGS 84 / UTM zone 19S",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-69],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",10000000],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32719"]]</OGC_WKT>
+    <PROJ4>+proj=utm +zone=19 +south +datum=WGS84 +units=m +no_defs</PROJ4>
+    <EPSG>32719</EPSG>
+  </PROJECTION>
+</SAGA_METADATA>

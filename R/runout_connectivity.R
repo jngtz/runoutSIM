@@ -1,11 +1,11 @@
-sourceConnect <- function(sim_paths, feature_mask, reps = NULL) {
+sourceConnect <- function(sim_paths, feature_mask, trials = NULL) {
   # Handle empty sim_paths
   if (length(sim_paths) == 0) {
     return(0)  # No connectivity if no paths
   }
   
   # Determine the total number of paths to process
-  N_total <- if (is.null(reps)) length(sim_paths) else min(reps, length(sim_paths))
+  N_total <- if (is.null(trials)) length(sim_paths) else min(trials, length(sim_paths))
   
   # Counter for the number of paths that intersect the feature
   N_intersect <- 0
