@@ -1,0 +1,27 @@
+sourceConnect <- function(sim_paths, feature_mask, reps = NULL) {
+  # Handle empty sim_paths
+  if (length(sim_paths) == 0) {
+    return(0)  # No connectivity if no paths
+  }
+  
+  # Determine the total number of paths to process
+  N_total <- if (is.null(reps)) length(sim_paths) else min(reps, length(sim_paths))
+  
+  # Counter for the number of paths that intersect the feature
+  N_intersect <- 0
+  
+  # Loop over each path
+  for (i in 1:N_total) {
+    path <- sim_paths[[i]]  # Get the current path
+    
+    # Check if the path intersects the feature (assuming feature_mask is a matrix)
+    if (any(feature_mask[path[, 1], path[, 2]] == 1)) {
+      N_intersect <- N_intersect + 1
+    }
+  }
+  
+  # Calculate the connectivity probability
+  P_connect <- N_intersect / N_total
+  
+  return(P_connect)
+}
