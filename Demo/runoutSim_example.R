@@ -1,6 +1,6 @@
 source("./R/pcm.R")
 source("./R/random_walk.R")
-source("./R/combine_walks.R")
+source("./R/results_to_raster.R")
 source("./R/runout_connectivity.R")
 source("./R/interactive_plot.R")
 
@@ -91,7 +91,7 @@ trav_prob <- rasterCdf(trav_freq)
 
 library(parallel)
 # Define number of cores to use
-n_cores <- detectCores() -5
+n_cores <- detectCores() -2
 
 packed_dem <- wrap(dem)
 
@@ -123,18 +123,7 @@ trav_prob <- rasterCdf(trav_freq)
 
 # Source connectivity ##########################################################
 
-connToRaster <- function(x, y){
-  prob_connect <- round(sapply(multi_sim_paths, function(x) x$prob_connect),3)
-  cell_index <- sapply(multi_sim_paths, function(x) x$start_cell)
-  
-  
-  conn_r <- terra::rast(dem)
-  terra::values(conn_r) <- NA
-  
-  # Assign connectivity to cells
-  conn_r[cell_index] <- prob_connect
-  return(conn_r)
-}
+
 
 conn_prob <- connToRaster(multi_sim_paths, dem)
 
