@@ -45,3 +45,12 @@ walksToRaster <- function(x, dem, weights = NULL){
   return(runout_raster)
   
 }
+
+
+rasterCdf <- function(x){
+  
+  x_ecdf <- ecdf(terra::values(x))
+  prob_x <- terra::setValues(x, x_ecdf(terra::values(x)))
+  prob_x
+  
+}

@@ -4,6 +4,12 @@ source("./R/combine_walks.R")
 source("./R/runout_connectivity.R")
 source("./R/interactive_plot.R")
 
+# Create three examples
+# 1.) using points as source points
+# 2.) using top elev %cells as source points
+#     ^ can demo determining the simulated connectivity of a runout polygon
+# 3.) using source points from a grid
+
 # Load libraries to handle spatial data ########################################
 library(terra)
 library(sf)
@@ -44,7 +50,7 @@ makeConnFeature <- function(x,y){
 
 feature_mask <- makeConnFeature(river, dem)
 
-# Run PCM-Random Walk for Single Source Cell ##########################################################
+# Run PCM-Random Walk for Single Source Cell ###################################
 
 # Run for a single source point
 sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
@@ -62,4 +68,77 @@ plot(st_geometry(runout_polygon), add = T)
 plot(source_point, add = T)
 
 
+# Run PCM-Random Walks for Multiple Cells ######################################
 
+# Get coordinates of source points
+source_l <- list()
+for(i in 1:nrow(source_points)){
+  source_l[[i]] <- st_coordinates(source_points[i,])
+}
+
+# ^ Need to make a function to clean this up - creating a source object.
+
+# Use lapply to run for multiple source cells
+rw_l <- lapply(source_l, function(x) {
+  runoutSim(dem = dem, xy = x, mu = 0.008, md = 140, 
+            slp_thresh = 35, exp_div = 3.0, per_fct = 1.95, walks = 1000)})
+
+trav_freq <- walksToRaster(rw_l, dem)
+trav_prob <- rasterCdf(trav_freq)
+
+
+# Run Parallel PCM-Random Walks for Multiple Cells #############################
+
+library(parallel)
+# Define number of cores to use
+n_cores <- detectCores() -5
+
+packed_dem <- wrap(dem)
+
+# Create parallel loop
+cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
+
+# Load objects and 'custom' functions to each cluster
+clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
+                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
+                              "feature_mask"))
+
+# Load required packages to each cluster
+clusterEvalQ(cl, {
+  library(terra)
+})
+
+
+multi_sim_paths <- parLapply(cl, source_l, function(x) {
+
+  runoutSim(dem = unwrap(packed_dem), xy = x, mu = 0.08, md = 140, 
+        slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
+        source_connect = TRUE, feature_layer = feature_mask)
+})
+
+stopCluster(cl) 
+
+trav_freq <- walksToRaster(multi_sim_paths, dem)
+trav_prob <- rasterCdf(trav_freq)
+
+# Source connectivity ##########################################################
+
+connToRaster <- function(x, y){
+  prob_connect <- round(sapply(multi_sim_paths, function(x) x$prob_connect),3)
+  cell_index <- sapply(multi_sim_paths, function(x) x$start_cell)
+  
+  
+  conn_r <- terra::rast(dem)
+  terra::values(conn_r) <- NA
+  
+  # Assign connectivity to cells
+  conn_r[cell_index] <- prob_connect
+  return(conn_r)
+}
+
+conn_prob <- connToRaster(multi_sim_paths, dem)
+
+# Visualize results ############################################################
+plot.runout(trav_prob, rasterTitle = "mean prob", rasterOpacity = 0.5)
+
+# ^ update this like mapview... where we can add to it "+"
