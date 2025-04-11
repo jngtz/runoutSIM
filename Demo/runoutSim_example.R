@@ -18,7 +18,8 @@ library(mapview)
 # Load data ####################################################################
 
 # Load digital elevation model (DEM)
-dem <- rast("Data/elev.tif")
+dem <- rast("Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+# e.g. DMMF::SinkFill(raster::raster()) (our random walk is not an infilling algorithm)
 
 # Load runout source points and polygons
 source_points <- st_read("Data/debris_flow_source_points.shp")
@@ -36,24 +37,16 @@ river <- st_read("Data/river_channel.shp")
 
 # Data pre-processing ##########################################################
 
-# Create a feature for connectivity (object) analysis using the river
-# ^ turn this into a function
-
-makeConnFeature <- function(x,y){
-  object = terra::rasterize(vect(x), y)
-  
-  # Create feature mask outside of function (just raster converted to matrix)
-  feature_mask <- as.matrix(object, wide=TRUE)
-  feature_mask[is.na(feature_mask)] <- 0
-  return(feature_mask)
-}
+# We create a connectivity feature to allow for quicker processing 
+# it is essentially an index of all the cells covered by the feature max in 
+# the given DEM.
 
 feature_mask <- makeConnFeature(river, dem)
 
 # Run PCM-Random Walk for Single Source Cell ###################################
 
 # Run for a single source point
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
+sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.0008, md = 140, 
                       slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
                       source_connect = TRUE, feature_layer = feature_mask)
 
@@ -80,12 +73,11 @@ for(i in 1:nrow(source_points)){
 
 # Use lapply to run for multiple source cells
 rw_l <- lapply(source_l, function(x) {
-  runoutSim(dem = dem, xy = x, mu = 0.008, md = 140, 
-            slp_thresh = 35, exp_div = 3.0, per_fct = 1.95, walks = 1000)})
+  runoutSim(dem = dem, xy = x, mu = 0.0001, md = 140, 
+            slp_thresh = 50, exp_div = 3.0, per_fct = 1.95, walks = 1000)})
 
 trav_freq <- walksToRaster(rw_l, dem)
 trav_prob <- rasterCdf(trav_freq)
-
 
 # Run Parallel PCM-Random Walks for Multiple Cells #############################
 
@@ -111,23 +103,30 @@ clusterEvalQ(cl, {
 
 multi_sim_paths <- parLapply(cl, source_l, function(x) {
 
-  runoutSim(dem = unwrap(packed_dem), xy = x, mu = 0.08, md = 140, 
+  runoutSim(dem = unwrap(packed_dem), xy = x, mu = 0.0001, md = 140, 
         slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
         source_connect = TRUE, feature_layer = feature_mask)
 })
 
 stopCluster(cl) 
 
-trav_freq <- walksToRaster(multi_sim_paths, dem)
+trav_freq <- walksToRaster(rw_l, dem)
 trav_prob <- rasterCdf(trav_freq)
 
 # Source connectivity ##########################################################
 
-
-
-conn_prob <- connToRaster(multi_sim_paths, dem)
+conn_prob <- connToRaster(rw_l, dem)
 
 # Visualize results ############################################################
-plot.runout(trav_prob, rasterTitle = "mean prob", rasterOpacity = 0.5)
 
-# ^ update this like mapview... where we can add to it "+"
+trav_vel <- velocityToRaster(rw_l, dem)
+
+plot.leaflet(runout_polygons) %>%
+  plot.leaflet(trav_freq) %>%
+  plot.leaflet(trav_prob) %>%
+  plot.leaflet(conn_prob, palette = 'magma') %>%
+  plot.leaflet(trav_vel, palette = 'plasma') %>%
+  plot.leaflet(source_points, color = "red") %>%
+  plot.leaflet(river, color = "#99d2ff")
+
+

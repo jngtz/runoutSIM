@@ -1,6 +1,8 @@
-# need to make palette flexible to data ranges different than 0:1
+require(leaflet)
+require(leafem)
 
-plot.runout <- function(m = NULL,
+
+plot.leaflet <- function(m = NULL,
                         data = NULL,               # ← default data to NULL
                         group_layers = NULL,
                         label = NULL,
@@ -149,8 +151,3 @@ plot.runout <- function(m = NULL,
 
 }
 
-plot.runout(runout_polygons) %>%
-  plot.runout(trav_freq) %>%
-  plot.runout(conn_prob, palette = 'magma') %>%
-  plot.runout(source_points, color = "red") %>%
-  plot.runout(river, color = "#99d2ff")

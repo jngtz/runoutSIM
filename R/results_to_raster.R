@@ -7,7 +7,7 @@ walksToRaster <- function(x, dem, weights = NULL){
   runout_raster <- terra::rast(dem)
   terra::values(runout_raster) <- NA
   
-  if(length(x) > 3){
+  if(length(x) > 4){
     # for multiple walks from difference source points
     trav_freq <- sapply(x, function(x) x$cell_trav_freq)
     
@@ -57,6 +57,43 @@ connToRaster <- function(x, y){
   # Assign connectivity to cells
   conn_r[cell_index] <- prob_connect
   return(conn_r)
+}
+
+
+velocityToRaster <- function(x, y, method = "max"){
+  
+  r <- terra::rast(dem)
+  terra::values(r) <- NA
+  
+  if(length(x) > 4){
+    # for multiple walks from difference source points
+    cell_velocities <- sapply(x, function(x) x$cell_max_vel)
+    cell_indicies <- sapply(x, function(x) as.numeric(names(x$cell_trav_freq)))
+    
+    vels <- unlist(cell_velocities)
+    cells <- unlist(cell_indicies)
+    
+    # combine overlaying traverse frequencies
+    combine_d <- tapply(vels, cells, get(method), simplify = TRUE) 
+    
+    
+    r[as.numeric(names(combine_d))] <- as.numeric(combine_d)
+    
+  } else {
+
+    cell_index <- as.numeric(names(x$cell_trav_freq))
+    cell_velocity <- x$cell_max_vel
+    
+    r[cell_index] <- cell_velocity
+
+  }
+  
+  # Add name attibutes
+  names(r) <- "max_velocity_ms"
+  varnames(r) <- method
+  return(r)
+  
+  
 }
 
 

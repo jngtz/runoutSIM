@@ -25,3 +25,14 @@ sourceConnect <- function(sim_paths, feature_mask, trials = NULL) {
   
   return(P_connect)
 }
+
+
+# Create a feature for connectivity (object) analysis using the river
+makeConnFeature <- function(x,y){
+  object = terra::rasterize(vect(x), y)
+  
+  # Create feature mask outside of function (just raster converted to matrix)
+  feature_mask <- as.matrix(object, wide=TRUE)
+  feature_mask[is.na(feature_mask)] <- 0
+  return(feature_mask)
+}
