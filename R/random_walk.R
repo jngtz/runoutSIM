@@ -1,3 +1,14 @@
+#' Get Adjacent Cell Coordinates
+#'
+#' Calculates the coordinates of 8 adjacent cells surrounding a given center cell.
+#'
+#' @param r A numeric vector of length 2 representing the resolution of the raster in x and y directions (e.g., \code{c(xres, yres)}).
+#' @param xy A numeric vector of length 2 specifying the x and y coordinates of the center cell (e.g., \code{c(x, y)}).
+#'
+#' @return A matrix of 8 rows and 2 columns containing the coordinates of the adjacent cells.
+#' @keywords internal
+#' @examples 
+#' adjCells(c(10, 10), c(100, 100))
 adjCells <- function(r, xy){
   #r: vector - resolution of raster c(_,_)
   #xy: vector - xy location of center cell c(_,_)
@@ -10,6 +21,16 @@ adjCells <- function(r, xy){
   
 }
 
+#' Get Row/Column Indices of Adjacent Cells
+#'
+#' Computes the row and column indices of the 8 adjacent cells surrounding a given central cell in a raster grid.
+#'
+#' @param rowcol A numeric vector of length 2 representing the row and column index of the center cell.
+#'
+#' @return A matrix of 8 rows and 2 columns with the row and column indices of the adjacent cells.
+#' @keywords internal
+#' @examples
+#' adjRowCol(c(10, 10))
 adjRowCol <- function(rowcol){
   
   x <- .subset2(rowcol, 1)
@@ -31,38 +52,90 @@ adjRowCol <- function(rowcol){
   return(d)
 }
 
+
+#' Calculate Euclidean Distance Between Two Points
+#'
+#' Computes the Euclidean distance between two 2D points.
+#'
+#' @param p1 A numeric vector of length 2 representing the first point's coordinates (x, y).
+#' @param p2 A numeric vector of length 2 representing the second point's coordinates (x, y).
+#'
+#' @return A numeric value representing the distance between the two points.
+#' @examples
+#' euclideanDistance(c(0, 0), c(3, 4))
 euclideanDistance <- function(p1, p2){
   sqrt( (p1[1] - p2[1])^2 + (p1[2]- p2[2])^2 )
 }
 
 
-dem = dem
-xy = st_coordinates(source_point)
-mu = 0.1
-md = 40
-int_vel = 1
-slp_thresh = 30
-exp_div = 3
-per_fct = 2
-walks = 100
-source_connect = FALSE
-feature_layer = NULL
-max_velocity = TRUE
-
-
-#! random walk is only looking for those cells of lower elevation... but
-# what if the next cell is of higher elevation and the velocity strong enough
-# to overcome the next cell.... next questions, what is the next cell,
-# it would have to be defined in terms flow direction 
-
-
+#' Simulate Runout Paths Using Random Walk and PCM Physics
+#'
+#' Simulates the runout paths of mass movements (e.g., debris flows, snow avalanches) from one or more source points 
+#' using a physically-informed random walk model. Each path incorporates slope-based directionality, 
+#' lateral dispersion, and energy loss based on the Perla-Cheng-McClung (PCM) velocity model.
+#'
+#' @param dem SpatRaster. A digital elevation model (DEM), ideally sink-filled and hydrologically correct.
+#' @param xy Numeric vector or matrix. Coordinates of one or more source points (e.g., `cbind(x, y)`).
+#' @param mu Numeric. Basal friction coefficient used in the PCM velocity model (default = `0.1`).
+#' @param md Numeric. Mass-to-drag ratio used in the PCM model to control deceleration from air drag and terrain resistance.
+#' @param slp_thresh Numeric. Minimum slope (in degrees) required for particle movement. Particles stop when local slope falls below this value.
+#' @param exp_div Numeric. Lateral dispersion exponent controlling spread of paths away from steepest descent. Higher values = less lateral dispersion.
+#' @param per_fct Numeric. Persistence factor controlling how strongly particles follow the current downslope direction. Values >1 increase directional inertia.
+#' @param walks Integer. Number of random walk particles to simulate per source point (default = `1000`).
+#' @param source_connect Logical. If `TRUE`, particles are flagged based on whether they intersect a defined connectivity feature (e.g., stream channel).
+#' @param feature_layer SpatRaster. Optional raster of connectivity features created using `makeConnFeature()`. Required if `source_connect = TRUE`.
+#' @param seed Integer. Optional random seed to ensure reproducibility.
+#'
+#' @return A list of simulated particle paths. Each element contains a matrix or list of stepwise information
+#'         (e.g., coordinates, step index, velocity, slope, and connectivity).
+#'
+#' @details
+#' This function simulates gravity-driven runout from user-defined source cells. Particle paths evolve through
+#' a random walk process biased by terrain slope and lateral spread rules. At each step, the PCM velocity model
+#' updates particle speed based on slope, friction (`mu`), and mass-to-drag ratio (`md`).
+#'
+#' Paths terminate when slope falls below `slp_thresh`, or particles encounter terrain conditions that no longer allow
+#' continued downhill movement.
+#'
+#' @section PCM Model:
+#' The PCM model (Perla-Cheng-McClung) describes velocity as a balance between gravitational acceleration,
+#' frictional resistance, and air drag. Higher `md` values imply greater momentum and less deceleration from drag.
+#'
+#' @section Applicability:
+#' This model can be applied to a variety of gravity-driven mass movements such as **debris flows**, **snow avalanches**, 
+#' and other similar phenomena. The random walk approach, combined with the PCM velocity model, makes it highly versatile for 
+#' simulating different types of runout based on the underlying physical principles of mass movement.
+#'
+#' @section Connectivity:
+#' If `source_connect = TRUE`, simulated paths are checked for intersection with a connectivity feature raster.
+#' This enables downstream analysis of connectivity probability (`connToRaster()`), or flow velocity surfaces (`velocityToRaster()`).
+#'
+#' @seealso \code{\link{pcm}}, \code{\link{makeConnFeature}}, \code{\link{walksToRaster}}, 
+#'          \code{\link{connToRaster}}, \code{\link{velocityToRaster}}
+#'
+#' @examples
+#' # Load DEM and connectivity feature
+#' dem <- terra::rast("Data/elev_nosinks.tif")
+#' river <- sf::st_read("Data/river_channel.shp")
+#' feature_mask <- makeConnFeature(river, dem)
+#'
+#' # Simulate runout from a single source point
+#' sim_paths <- runoutSim(dem = dem, xy = c(500000, 5200000), mu = 0.08, md = 140,
+#'                        slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
+#'                        source_connect = TRUE, feature_layer = feature_mask)
+#'
+#' # Convert results to raster
+#' trav_freq <- walksToRaster(sim_paths, dem)
+#' trav_prob <- rasterCdf(trav_freq)
+#' conn_prob <- connToRaster(sim_paths, dem)
+#' vel_map   <- velocityToRaster(sim_paths, dem)
 runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, exp_div = 3, per_fct = 2, walks = 100,
-                      source_connect = FALSE, feature_layer = NULL){
+                      source_connect = FALSE, connect_feature = NULL){
   
   #---Parameter Description---
   # This a random walk (Wichman 2017 implementation) with path distance 
   # controlled by the two-parameter PCM friction model (Perla et al 1980)
-  # For a sink-filled DEM.
+  # for a sink-filled DEM.
   
   #__Terrain and Source Data__
   # dem:        The digital elevation model (SpatRast object)
@@ -317,7 +390,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   
   if(source_connect == TRUE){
     
-    prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = feature_layer, trials = walks)
+    prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = connect_feature, trials = walks)
     
     walks_res <- list(
       start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),

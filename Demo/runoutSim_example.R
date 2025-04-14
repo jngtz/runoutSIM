@@ -1,6 +1,6 @@
 source("./R/pcm.R")
 source("./R/random_walk.R")
-source("./R/results_to_raster.R")
+source("./R/simulation_to_raster.R")
 source("./R/runout_connectivity.R")
 source("./R/interactive_plot.R")
 
@@ -73,7 +73,7 @@ for(i in 1:nrow(source_points)){
 
 # Use lapply to run for multiple source cells
 rw_l <- lapply(source_l, function(x) {
-  runoutSim(dem = dem, xy = x, mu = 0.0001, md = 140, 
+  runoutSim(dem = dem, xy = x, mu = 0.08, md = 140, 
             slp_thresh = 50, exp_div = 3.0, per_fct = 1.95, walks = 1000)})
 
 trav_freq <- walksToRaster(rw_l, dem)
@@ -103,7 +103,7 @@ clusterEvalQ(cl, {
 
 multi_sim_paths <- parLapply(cl, source_l, function(x) {
 
-  runoutSim(dem = unwrap(packed_dem), xy = x, mu = 0.0001, md = 140, 
+  runoutSim(dem = unwrap(packed_dem), xy = x, mu = 0.08, md = 140, 
         slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
         source_connect = TRUE, feature_layer = feature_mask)
 })
