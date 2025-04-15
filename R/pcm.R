@@ -21,8 +21,8 @@
 #'
 #' @examples
 #' pcm(mu = 0.1, md = 40, v_p = 2, theta_p = 35, theta_i = 25, l = 12.5)
-#'
 #' @export
+
 pcm <- function(mu = 0.1, md = 40, v_p = 1, theta_p = 30, theta_i = 20, l = 12.5) {
   g <- 9.80665  # Gravitational acceleration (m/s^2)
   

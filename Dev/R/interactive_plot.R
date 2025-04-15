@@ -1,46 +1,7 @@
 require(leaflet)
 require(leafem)
 
-#' Plot Spatial Data Using Leaflet
-#'
-#' Creates an interactive `leaflet` map from raster or `sf` vector data, with options to customize basemaps, styling, and popups.
-#'
-#' This function is designed to handle both standalone and piped usage. If the first argument is a raster or `sf` object and `data` is `NULL`, it automatically reassigns the input appropriately. It can visualize raster values with color palettes and legends, or render vector data (points, lines, polygons) with informative popups.
-#'
-#' @param m Optional existing `leaflet` map object. If `NULL`, a new map is initialized.
-#' @param data A `Raster*`, `terra::SpatRaster`, or `sf` object to be plotted. If not provided, `m` will be interpreted as the data.
-#' @param group_layers Character vector of existing overlay groups. Used to maintain group-layer visibility toggles.
-#' @param label A character string for the layer label and legend title. If `NULL`, will be auto-generated from the object name.
-#' @param opacity Numeric (0–1) for layer transparency. Defaults to `0.5`.
-#' @param color Color used for vector geometries (ignored for rasters). Defaults to `"black"`.
-#' @param radius Numeric size of circle markers for point geometries. Defaults to `3`.
-#' @param weight Line or border thickness for vector geometries. Defaults to `2`.
-#' @param palette Color palette name used with `leaflet::colorNumeric()` for raster coloring. Defaults to `"viridis"`.
-#' @param basemaps Character vector of tile provider names (from `leaflet::providers`) to include as base layers. Defaults to `c("Esri.WorldImagery", "Esri.WorldTopoMap")`.
-#'
-#' @return A `leaflet` map object with the data layer(s) and controls.
-#'
-#' @details
-#' - Raster data is projected to WGS84 (EPSG:4326) and colorized using a continuous palette.
-#' - Vector data supports POINT, LINESTRING, and POLYGON geometries.
-#' - Attributes are displayed in scrollable popups if there are many fields.
-#' - The function adds scale bars, measurement tools, and layer controls.
-#'
-#' @examples
-#' \dontrun{
-#' library(leaflet)
-#' library(sf)
-#' library(raster)
-#' # From scratch
-#' Leafplot(data = st_read(system.file("shape/nc.shp", package = "sf")))
-#'
-#' # Add to existing map
-#' m <- leaflet()
-#' Leafplot(m, st_read(system.file("shape/nc.shp", package = "sf")))
-#' }
-#'
-#' @import leaflet sf raster terra
-#' @export
+
 
 Leafplot <- function(m = NULL,
                         data = NULL,               # ← default data to NULL

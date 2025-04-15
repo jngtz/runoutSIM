@@ -11,9 +11,13 @@
 #' @return A `SpatRaster` with cell values representing weighted or unweighted traverse frequencies.
 #'
 #' @examples
+#' \dontrun{
 #' # Convert simulated paths to a raster of transition frequencies
 #' paths_raster <- walksToRaster(sim_paths, dem)
 #' plot(paths_raster)
+#' }
+#' @export
+
 walksToRaster <- function(x, dem, weights = NULL){
 
   runout_raster <- terra::rast(dem)
@@ -65,17 +69,21 @@ walksToRaster <- function(x, dem, weights = NULL){
 #'
 #' @param x A list of outputs from multiple runout simulations, each containing
 #' `start_cell` and `prob_connect`.
-#' @param y A `SpatRaster` (typically the DEM used in simulation) used to define the output raster grid.
+#' @param dem A `SpatRaster` (typically the DEM used in simulation) used to define the output raster grid.
 #'
 #' @return A `SpatRaster` with probability of connectivity assigned to each source cell.
 #'
 #' @examples
+#' \dontrun{
 #' # Convert connectivity results to a raster
 #' conn_prob <- connToRaster(sim_paths, dem)
 #' plot(conn_prob)
-connToRaster <- function(x, y){
-  prob_connect <- round(sapply(multi_sim_paths, function(x) x$prob_connect),3)
-  cell_index <- sapply(multi_sim_paths, function(x) x$start_cell)
+#' }
+#' @export
+
+connToRaster <- function(x, dem){
+  prob_connect <- round(sapply(x, function(x) x$prob_connect),3)
+  cell_index <- sapply(x, function(x) x$start_cell)
   
   
   conn_r <- terra::rast(dem)
@@ -94,16 +102,20 @@ connToRaster <- function(x, y){
 #' using a specified summary method if multiple simulations overlap.
 #'
 #' @param x A list of simulation outputs containing `cell_max_vel` and `cell_trav_freq`.
-#' @param y A `SpatRaster` (DEM) used as reference.
+#' @param dem A `SpatRaster` (DEM) used as reference.
 #' @param method Summary function to apply across overlapping simulations (e.g., `"max"`, `"mean"`).
 #'
 #' @return A `SpatRaster` with cell values representing maximum velocity (in m/s).
 #'
 #' @examples
+#' \dontrun{
 #' # Convert velocity results to a raster
 #' trav_vel <- velocityToRaster(sim_paths, dem)
 #' plot(trav_vel)
-velocityToRaster <- function(x, y, method = "max"){
+#' }
+#' @export
+
+velocityToRaster <- function(x, dem, method = "max"){
   
   r <- terra::rast(dem)
   terra::values(r) <- NA
@@ -149,10 +161,14 @@ velocityToRaster <- function(x, y, method = "max"){
 #' @return A `SpatRaster` of the same extent and resolution with values between 0 and 1.
 #'
 #' @examples
+#' \dontrun{
 #' percentile_raster <- rasterCdf(runout_raster)
+#' }
+#' @export
+
 rasterCdf <- function(x){
   
-  x_ecdf <- ecdf(terra::values(x))
+  x_ecdf <- stats::ecdf(terra::values(x))
   prob_x <- terra::setValues(x, x_ecdf(terra::values(x)))
   prob_x
   

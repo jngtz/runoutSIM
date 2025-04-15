@@ -1,12 +1,55 @@
-# this version of the model, is assumming next steepest cells, unless no cells are steeper,
-# in that case it random picks one of the flat ones...
+
+
+adjCells <- function(r, xy){
+  #r: vector - resolution of raster c(_,_)
+  #xy: vector - xy location of center cell c(_,_)
+  
+  d <- c(rep(xy[1]-r[1], 3), rep(xy[1]+r[1],3), xy[1], xy[1],
+         rep(c(xy[2]+r[2], xy[2], xy[2]-r[2]), 2), xy[2]+r[2], xy[2]-r[2])
+  
+  d <- matrix(d, ncol=2)
+
+  
+}
+
+
+adjRowCol <- function(rowcol){
+  
+  x <- .subset2(rowcol, 1)
+  y <- .subset2(rowcol, 2)
+  
+  d <- c(x - 1, y -1,
+         x, y -1,
+         x + 1, y -1,
+         
+         x - 1, y + 1,
+         x, y + 1,
+         x + 1, y  + 1,
+         
+         x - 1, y,
+         x + 1, y)
+  
+  d <- matrix(d, ncol = 2, byrow = TRUE)
+  
+  return(d)
+}
+
+
+
+euclideanDistance <- function(p1, p2){
+  sqrt( (p1[1] - p2[1])^2 + (p1[2]- p2[2])^2 )
+}
+
+
+
 
 runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, exp_div = 3, per_fct = 2, walks = 100,
-                      source_connect = FALSE, feature_layer = NULL){
+                      source_connect = FALSE, connect_feature = NULL){
   
   #---Parameter Description---
   # This a random walk (Wichman 2017 implementation) with path distance 
   # controlled by the two-parameter PCM friction model (Perla et al 1980)
+  # for a sink-filled DEM.
   
   #__Terrain and Source Data__
   # dem:        The digital elevation model (SpatRast object)
@@ -36,7 +79,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   r = terra::res(dem)
   
   # Check if mu is single value or spatial varying (raster)
-  is_sp_mu <- is(mu, "SpatRaster")
+  is_sp_mu <- methods::is(mu, "SpatRaster")
   
   # Get row and column of the start cell in the DEM raster
   rw <- terra::rowFromY(dem, xy[2])
@@ -74,7 +117,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
     vel_cells <- list()
     
     #path_cells[[1]] <- cntr_cell # added to make sure start cell is in path cells
-    path_cells[[1]] <- c(0,0)#NA
+    path_cells[[1]] <- NA #
     
     i = 0 # i identifies step within walk
     n = 0
@@ -118,8 +161,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       lower_elv <- elv_ngh < elv_cntr
       
       if(!any(lower_elv)){
-        # break # stop if no lower elevations
-        lower_elv <- rep(TRUE, length(lower_elv)) # allow it to keep going when no lower elev
+        break # stop if no lower elevations
       }
       
       # determine slope to neighbor cell
@@ -153,16 +195,6 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       prob <-  f*tan(beta_ngh*pi/180) / sum(fj)
       prob <- prob/sum(prob)
       
-      # flip probabilities if now cell has lower elevation with more weight for prev direction
-      if(all(lower_elv)){
-        if(all(is.nan(prob))){
-          prob <- rep(1, length(prob))*f/sum(rep(1, length(prob))*f)
-        } else {
-          prob <- (1-prob)*f/sum((1-prob)*f)
-        }
-        
-      } 
-      
       # determine how close the slope to the steepest neighbor is to the 
       # slope threshold
       gamma_max <- max(gamma_i)
@@ -185,16 +217,10 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
         
         # neighbor cells are filtered by allowable flow spread by the exponent
         # of divergence (exp_div)
-        if(gamma_max<=0){
-          # if all neigboring cells are flat or higher elevation
-          N <- cells
-          trans_prob <- prob
-        } else {
-          N <- cells[gamma_i >= gamma_max^exp_div]
-          # assign transition probabilities to this selection 
-          trans_prob <- prob[gamma_i >= gamma_max^exp_div]
-        }
+        N <- cells[gamma_i >= gamma_max^exp_div]
         
+        # assign transition probabilities to this selection 
+        trans_prob <- prob[gamma_i >= gamma_max^exp_div]
         
         # use weighted sampling
         if(length(N) > 1){
@@ -227,17 +253,12 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       
       # assign current velocity as previous velocity (for next step in the walk)
       v_p <- v_i
-      
+     
       # assign current slope angle as previous slope angle (for next step in the walk)
       theta_p = beta_ngh[nxt_cell == cells] 
       
-      # pull previous cells to test later if already cell passed
-      path_keys <- paste(path_mat[,1], path_mat[,2], sep = "_") # SLOW?
-      target_key <- paste(d[nxt_cell, 1], d[nxt_cell, 2], sep = "_")
-      
       # store row column of next cell for the walk (to reference DEM location)
       path_cells[[i]] <- d[nxt_cell,]
-      
       
       # define local cell for next step in the walk
       cntr_cell <- d[nxt_cell,]
@@ -249,15 +270,6 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
         vel_cells[[i]] <- 0
         break
       }
-      
-      # stop if flowing to a previous cell...
-      
-      if(target_key %in% path_keys){ #! SLOW
-        vel_cells[[i]] <- 0
-        break
-      }
-      
-
       
     }
     
@@ -292,7 +304,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   
   if(source_connect == TRUE){
     
-    prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = feature_layer, trials = walks)
+    prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = connect_feature, trials = walks)
     
     walks_res <- list(
       start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),
@@ -318,40 +330,3 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
 }
 
 
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.008, md = 140, 
-                      slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
-                      source_connect = TRUE, feature_layer = feature_mask)
-
-# Convert paths to raster with cell transition frequencies
-paths_raster <- walksToRaster(sim_paths, dem)
-
-# Plot results
-paths_raster <- crop(paths_raster, ext(runout_polygon)+1000)
-plot(paths_raster, legend = T)
-plot(st_geometry(river), add = T, border = "#5b86b9")
-plot(st_geometry(runout_polygon), add = T)
-plot(source_point, add = T)
-
-############
-
-rw_l <- lapply(source_l, function(x) {
-  runoutSim(dem = dem, xy = x, mu = 0.0001, md = 140, 
-            slp_thresh = 30, exp_div = 3.0, per_fct = 1.95, walks = 1000)})
-
-trav_freq <- walksToRaster(rw_l, dem)
-trav_prob <- rasterCdf(trav_freq)
-
-# Source connectivity ##########################################################
-
-conn_prob <- connToRaster(rw_l, dem)
-
-# Visualize results ############################################################
-
-trav_vel <- velocityToRaster(rw_l, dem)
-
-plot.leaflet(runout_polygons) %>%
-  plot.leaflet(trav_prob) %>%
-  plot.leaflet(conn_prob, palette = 'magma') %>%
-  plot.leaflet(trav_vel, palette = 'plasma') %>%
-  plot.leaflet(source_points, color = "red") %>%
-  plot.leaflet(river, color = "#99d2ff")

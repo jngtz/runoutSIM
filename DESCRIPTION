@@ -1,11 +1,21 @@
 Package: runoutSim
-Title: What the Package Does (One Line, Title Case)
+Title: Spatial Random Walk Simulation of Mass-Movement Runout and Connectivity in R
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R:
+    person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre"))
+Description: Geospatial tools for simulating mass-movement runout using random 
+  walk methods on digital elevation models (DEMs) and assessing connectivity to spatial features.
+License: MIT + file LICENSE
+URL: https://github.com/jngtz/runoutSim
+Depends:
+    methods,
+    stats
+Imports: 
+    terra,
+    leaflet,
+    leafem,
+    raster,
+    sf
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

@@ -1,18 +1,3 @@
-#' Create Connectivity Feature Mask
-#'
-#' Converts a spatial feature (e.g., a polygon `sf` object) into a binary matrix
-#' mask aligned with the reference DEM used for runout simulations.
-#'
-#' @param x An `sf` object representing the feature of interest (e.g., a polygon).
-#' @param y A `SpatRaster` (e.g., DEM) used as the reference for rasterization.
-#'
-#' @return A binary matrix the same size as `y`, with `1` indicating presence of the feature and `0` elsewhere.
-#'
-#' @examples
-#' \dontrun{
-#' feature_mask <- makeConnFeature(my_sf_polygon, my_dem)
-#' }
-#' @export
 
 makeConnFeature <- function(x,y){
 
@@ -25,22 +10,7 @@ makeConnFeature <- function(x,y){
 }
 
 
-#' Estimate Probability of Source-Feature Connectivity
-#'
-#' Calculates the proportion of simulated paths (e.g., from random walk runout simulations)
-#' that intersect a binary connectivity feature mask.
-#'
-#' @param sim_paths A list of matrices, each containing (row, col) indices of cells visited by a simulation path.
-#' @param feature_mask A binary matrix indicating presence (`1`) of a connectivity feature (from `makeConnFeature()`).
-#' @param trials Optional integer specifying how many simulation paths to consider. Defaults to all paths.
-#'
-#' @return A numeric value between 0 and 1 indicating the estimated probability of connection.
-#'
-#' @examples
-#' \dontrun{
-#' p_connect <- sourceConnect(sim_paths, feature_mask, trials = 1000)
-#' }
-#' @export
+
 
 sourceConnect <- function(sim_paths, feature_mask, trials = NULL) {
   # This function works quickly by exploring for matches in (row cols)

@@ -1,9 +1,3 @@
-source("./R/pcm.R")
-source("./R/random_walk.R")
-source("./R/simulation_to_raster.R")
-source("./R/runout_connectivity.R")
-source("./R/interactive_plot.R")
-
 # Create three examples
 # 1.) using points as source points
 # 2.) using top elev %cells as source points
@@ -15,9 +9,9 @@ source("./R/interactive_plot.R")
 # package without having to depend on building a package...
 
 # Load libraries to handle spatial data ########################################
+library(runoutSim)
 library(terra)
 library(sf)
-library(mapview)
 
 # Load data ####################################################################
 
@@ -118,16 +112,16 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
 
 stopCluster(cl) 
 
-trav_freq <- walksToRaster(rw_l, dem)
+trav_freq <- walksToRaster(multi_sim_paths, dem)
 trav_prob <- rasterCdf(trav_freq)
 
 # Source connectivity ##########################################################
 
-conn_prob <- connToRaster(rw_l, dem)
+conn_prob <- connToRaster(multi_sim_paths, dem)
 
 # Visualize results ############################################################
 
-trav_vel <- velocityToRaster(rw_l, dem)
+trav_vel <- velocityToRaster(multi_sim_paths, dem)
 
 Leafplot(runout_polygons) %>%
   Leafplot(trav_freq) %>%

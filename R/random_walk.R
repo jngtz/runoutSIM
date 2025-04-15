@@ -9,6 +9,8 @@
 #' @keywords internal
 #' @examples 
 #' adjCells(c(10, 10), c(100, 100))
+#' @export
+
 adjCells <- function(r, xy){
   #r: vector - resolution of raster c(_,_)
   #xy: vector - xy location of center cell c(_,_)
@@ -31,6 +33,8 @@ adjCells <- function(r, xy){
 #' @keywords internal
 #' @examples
 #' adjRowCol(c(10, 10))
+#' @export
+
 adjRowCol <- function(rowcol){
   
   x <- .subset2(rowcol, 1)
@@ -63,6 +67,8 @@ adjRowCol <- function(rowcol){
 #' @return A numeric value representing the distance between the two points.
 #' @examples
 #' euclideanDistance(c(0, 0), c(3, 4))
+#' @export
+
 euclideanDistance <- function(p1, p2){
   sqrt( (p1[1] - p2[1])^2 + (p1[2]- p2[2])^2 )
 }
@@ -78,13 +84,13 @@ euclideanDistance <- function(p1, p2){
 #' @param xy Numeric vector or matrix. Coordinates of one or more source points (e.g., `cbind(x, y)`).
 #' @param mu Numeric. Basal friction coefficient used in the PCM velocity model (default = `0.1`).
 #' @param md Numeric. Mass-to-drag ratio used in the PCM model to control deceleration from air drag and terrain resistance.
+#' @param int_vel Numeric. Initial velocity for PCM model.
 #' @param slp_thresh Numeric. Minimum slope (in degrees) required for particle movement. Particles stop when local slope falls below this value.
 #' @param exp_div Numeric. Lateral dispersion exponent controlling spread of paths away from steepest descent. Higher values = less lateral dispersion.
 #' @param per_fct Numeric. Persistence factor controlling how strongly particles follow the current downslope direction. Values >1 increase directional inertia.
 #' @param walks Integer. Number of random walk particles to simulate per source point (default = `1000`).
 #' @param source_connect Logical. If `TRUE`, particles are flagged based on whether they intersect a defined connectivity feature (e.g., stream channel).
-#' @param feature_layer SpatRaster. Optional raster of connectivity features created using `makeConnFeature()`. Required if `source_connect = TRUE`.
-#' @param seed Integer. Optional random seed to ensure reproducibility.
+#' @param connect_feature SpatRaster. Optional raster of connectivity features created using `makeConnFeature()`. Required if `source_connect = TRUE`.
 #'
 #' @return A list of simulated particle paths. Each element contains a matrix or list of stepwise information
 #'         (e.g., coordinates, step index, velocity, slope, and connectivity).
@@ -114,7 +120,8 @@ euclideanDistance <- function(p1, p2){
 #'          \code{\link{connToRaster}}, \code{\link{velocityToRaster}}
 #'
 #' @examples
-#' # Load DEM and connectivity feature
+#' \dontrun{
+#' Load DEM and connectivity feature
 #' dem <- terra::rast("Data/elev_nosinks.tif")
 #' river <- sf::st_read("Data/river_channel.shp")
 #' feature_mask <- makeConnFeature(river, dem)
@@ -129,6 +136,9 @@ euclideanDistance <- function(p1, p2){
 #' trav_prob <- rasterCdf(trav_freq)
 #' conn_prob <- connToRaster(sim_paths, dem)
 #' vel_map   <- velocityToRaster(sim_paths, dem)
+#' }
+#' @export
+
 runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, exp_div = 3, per_fct = 2, walks = 100,
                       source_connect = FALSE, connect_feature = NULL){
   
@@ -165,7 +175,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   r = terra::res(dem)
   
   # Check if mu is single value or spatial varying (raster)
-  is_sp_mu <- is(mu, "SpatRaster")
+  is_sp_mu <- methods::is(mu, "SpatRaster")
   
   # Get row and column of the start cell in the DEM raster
   rw <- terra::rowFromY(dem, xy[2])

@@ -1,2 +1,5 @@
 ^runoutSim\.Rproj$
 ^\.Rproj\.user$
+^Data$
+^Demo$
+^Dev$
