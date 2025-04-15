@@ -14,6 +14,8 @@ source("./Dev/R/interactive_plot.R")
 # the demo script separate... allowing a quick start to manipulate the 
 # package without having to depend on building a package...
 
+# https://zia207.quarto.pub/digital-terrain-analysis.html
+
 # Load libraries to handle spatial data ########################################
 library(terra)
 library(sf)
