@@ -31,7 +31,20 @@ runout_polygon <- runout_polygons[10,]
 source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
 
 # Load river data used for connecivity analysis
-river <- st_read("Data/river_channel.shp")
+
+river_channel <- st_read("Dev/Data/river_channel.shp")
+stream_channels <- st_read("Dev/Data/river_rio_olivares.shp")
+
+bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+# buffer stream channels
+buffer_stream <- st_buffer(stream_channels, dist = 30)
+
+# combine to one feature
+drainage_network <- st_sf(st_union(st_geometry(river_channel), st_geometry(buffer_stream), is_coverage = TRUE))
+
+r_dn = rasterize(drainage_network, dem)
+
+Leafplot(r_dn) %>% Leafplot(bnd_catchment)
 
 # Data pre-processing ##########################################################
 
@@ -39,7 +52,7 @@ river <- st_read("Data/river_channel.shp")
 # it is essentially an index of all the cells covered by the feature max in 
 # the given DEM.
 
-feature_mask <- makeConnFeature(river, dem)
+feature_mask <- makeConnFeature(drainage_network, dem)
 
 # Run PCM-Random Walk for Single Source Cell ###################################
 
@@ -129,6 +142,7 @@ Leafplot(runout_polygons) %>%
   Leafplot(conn_prob, palette = 'magma') %>%
   Leafplot(trav_vel, palette = 'plasma') %>%
   Leafplot(source_points, color = "red") %>%
-  Leafplot(river, color = "#99d2ff")
+  Leafplot(river_channel, color = "#99d2ff") %>%
+  Leafplot(stream_channels, color = "#99d2ff")
 
 
