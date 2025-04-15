@@ -2,7 +2,8 @@ Package: runoutSim
 Title: Spatial Random Walk Simulation of Mass-Movement Runout and Connectivity in R
 Version: 0.0.0.9000
 Authors@R:
-    person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre"))
+    c(person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre")),
+    person("Jia", "Huang", , "huan7147@mylaurier.ca", role = c("ctb")))
 Description: Geospatial tools for simulating mass-movement runout using random 
   walk methods on digital elevation models (DEMs) and assessing connectivity to spatial features.
 License: MIT + file LICENSE
