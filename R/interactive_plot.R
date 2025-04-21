@@ -13,6 +13,7 @@ require(leafem)
 #' @param label A character string for the layer label and legend title. If `NULL`, will be auto-generated from the object name.
 #' @param opacity Numeric (0–1) for layer transparency. Defaults to `0.5`.
 #' @param color Color used for vector geometries (ignored for rasters). Defaults to `"black"`.
+#' @param fill_color Color used for fill of vector geometries (ignored for rasters). Defaults to `color` parameter.
 #' @param radius Numeric size of circle markers for point geometries. Defaults to `3`.
 #' @param weight Line or border thickness for vector geometries. Defaults to `2`.
 #' @param palette Color palette name used with `leaflet::colorNumeric()` for raster coloring. Defaults to `"viridis"`.
@@ -36,18 +37,19 @@ require(leafem)
 #'
 #' # Add to existing map
 #' m <- leaflet()
-#' Leafplot(m, st_read(system.file("shape/nc.shp", package = "sf")))
+#' leafplot(m, st_read(system.file("shape/nc.shp", package = "sf")))
 #' }
 #'
 #' @import leaflet sf raster terra
 #' @export
 
-Leafplot <- function(m = NULL,
+leafplot<- function(m = NULL,
                         data = NULL,               # ← default data to NULL
                         group_layers = NULL,
                         label = NULL,
                         opacity = 0.5,
                         color = "black",
+                        fill_color = color,
                         radius = 3,
                         weight = 2,
                         palette = "viridis",
@@ -85,44 +87,72 @@ Leafplot <- function(m = NULL,
   # Helper to track groups
   group_layers <- unique(c(group_layers, label))
   
-  # If raster
+  # if raster
   if (inherits(data, "Raster") || inherits(data, "SpatRaster")) {
-    # Project and round raster for display
-    sim_leaflet <- round(raster::raster(projectRasterForLeaflet(data, method = "bilinear")), 3)
     
-    # Get min/max values from raster
-    raster_range <- range(values(sim_leaflet), na.rm = TRUE)
-    
-    # Create color palette based on actual raster values
-    pal <- colorNumeric(palette, domain = raster_range, na.color = "#FF000000")
-    
-    m <- m %>%
-      addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
-                     project = TRUE, layerId = label, group = label) %>%
-      leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "") 
-    
-    m <- m %>%
-      addLegend(pal = pal, values = values(sim_leaflet), title = label, group = label) %>%
-      htmlwidgets::onRender(sprintf("
-    function(el, x) {
-      var legend = document.querySelectorAll('.leaflet-control .leaflet-control-legend')[0];
-      if (legend) legend.style.display = 'none';
-
-      var map = this;
-      map.on('overlayadd', function(e) {
-        if (e.name === '%s') {
-          if (legend) legend.style.display = 'block';
-        }
-      });
-      map.on('overlayremove', function(e) {
-        if (e.name === '%s') {
-          if (legend) legend.style.display = 'none';
-        }
-      });
+    if(is.list(palette) && all(c("classes", "colors") %in% names(palette))){
+      sim_leaflet <- round(raster::raster(projectRasterForLeaflet(data, method = "ngb")), 3)
+    } else {
+      sim_leaflet <- round(raster::raster(projectRasterForLeaflet(data, method = "bilinear")), 3)
     }
-  ", label, label))
     
     
+    raster_vals <- values(sim_leaflet)
+    
+    if (is.list(palette) && all(c("classes", "colors") %in% names(palette))) {
+      # Handle categorical raster
+      pal_classes <- palette$classes
+      pal_colors <- palette$colors
+      pal_labels <- if (!is.null(palette$labels)) palette$labels else as.character(pal_classes)
+      
+      if (length(pal_classes) != length(pal_colors)) stop("`palette$classes` and `palette$colors` must have the same length.")
+      if (length(pal_labels) != length(pal_classes)) stop("`palette$labels` must match the number of classes.")
+      
+      pal <- colorFactor(palette = pal_colors, domain = pal_classes, na.color = "#FF000000")
+      
+      m <- m %>%
+        addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
+                       project = TRUE, layerId = label, group = label) %>%
+        leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "") %>%
+        addLegend(
+          colors = pal_colors,
+          labels = pal_labels,
+          title = label,
+          group = label
+        )
+      
+    } else {
+      # Handle continuous raster
+      raster_range <- range(raster_vals, na.rm = TRUE)
+      pal <- colorNumeric(palette, domain = raster_range, na.color = "#FF000000")
+      
+      m <- m %>%
+        addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
+                       project = TRUE, layerId = label, group = label) %>%
+        leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "") %>%
+        addLegend(pal = pal, values = raster_vals, title = label, group = label)
+    }
+    
+    # Show/hide legend with layer toggles
+    m <- m %>%
+      htmlwidgets::onRender(sprintf("
+        function(el, x) {
+          var legend = document.querySelectorAll('.leaflet-control .leaflet-control-legend')[0];
+          if (legend) legend.style.display = 'none';
+
+          var map = this;
+          map.on('overlayadd', function(e) {
+            if (e.name === '%s') {
+              if (legend) legend.style.display = 'block';
+            }
+          });
+          map.on('overlayremove', function(e) {
+            if (e.name === '%s') {
+              if (legend) legend.style.display = 'none';
+            }
+          });
+        }
+      ", label, label))
     
   } else if (inherits(data, "sf")) {
     x_longlat <- st_transform(data, '+proj=longlat +datum=WGS84')
@@ -171,7 +201,7 @@ Leafplot <- function(m = NULL,
     if (all(geom_type %in% c("POLYGON", "MULTIPOLYGON"))) {
       m <- m %>%
         addPolygons(data = x_longlat, group = label,
-                    color = color, fillOpacity = opacity,
+                    color = color, fillColor = fill_color, fillOpacity = opacity,
                     weight = weight, opacity = 0.9,
                     popup = popup_content[1])
       
@@ -184,7 +214,7 @@ Leafplot <- function(m = NULL,
     } else if (all(geom_type %in% c("POINT", "MULTIPOINT"))) {
       m <- m %>%
         addCircleMarkers(data = x_longlat, group = label,
-                         radius = radius, color = color,
+                         radius = radius, color = color, fillColor = fill_color,
                          stroke = TRUE, fillOpacity = opacity,
                          popup = ~popup_content)
     } else {

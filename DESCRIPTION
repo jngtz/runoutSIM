@@ -15,6 +15,7 @@ Imports:
     terra,
     leaflet,
     leafem,
+    htmlwidgets,
     raster,
     sf
 Encoding: UTF-8
