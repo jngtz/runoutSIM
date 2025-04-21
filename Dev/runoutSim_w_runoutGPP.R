@@ -1,15 +1,16 @@
 # Development (Dev) environment for optimizing random walk runout simulations
 
-source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/pcm_performance.R")
-source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_performance.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/raster_rescale.R")
-source("Dev/R/runoptGPP_Dev/runout_geometry.R")
-source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
+# source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
+# source("Dev/R/runoptGPP_Dev/pcm_performance.R")
+# source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_gridsearch.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_performance.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_spatial_cross_validation.R")
+# source("Dev/R/runoptGPP_Dev/raster_rescale.R")
+# source("Dev/R/runoptGPP_Dev/runout_geometry.R")
+# source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
 
+library(runoptGPP)
 library(runoutSim)
 
 # Optimizing an individual runout path simulation ##############################

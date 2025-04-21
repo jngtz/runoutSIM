@@ -10,11 +10,17 @@
 
 spcvFoldsPoly <- function(x, n_folds = 5, seed_cv = 11082017){
   # x is a polygon spatial object
+  if(class(x)[1] == "sf"){
+    x = sf::as_Spatial(x)
+  }
+  
   x$objectid <- 1:nrow(x)
-  centroid_poly <- rgeos::gCentroid(x, byid=TRUE, id = x$objectid)
+  centroid_poly <- as_Spatial(sf::st_centroid(sf::st_as_sf(x)))
   set.seed(seed_cv)
   poly_crds <- sp::coordinates(centroid_poly)
-  sp_resamp <- sperrorest::partition_kmeans(poly_crds, nfold = n_folds)
+  centroid_poly$x = poly_crds[,1]
+  centroid_poly$y = poly_crds[,2]
+  sp_resamp <- sperrorest::partition_kmeans(data.frame(centroid_poly), nfold = n_folds)
 
   cv_labels <- rep(NA, nrow(x))
   # Spatial cv labels
