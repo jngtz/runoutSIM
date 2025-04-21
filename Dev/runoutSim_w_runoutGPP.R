@@ -125,12 +125,12 @@ doParallel::registerDoParallel(cl)
 rw_gridsearch_multi <-
   foreach(poly_id=polyid_vec, .packages=c('raster', 'ROCR', 'Rsagacmd', 'sf', 'runoutSim', 'terra')) %dopar% {
     
-    .GlobalEnv$saga <- saga
+    #.GlobalEnv$saga <- NULL
     
     rwGridsearch(dem, slide_plys = runout_polygons, slide_src = source_points,
                  slide_id = poly_id, slp_v = rwslp_vec, ex_v = rwexp_vec, per_v = rwper_vec,
                  gpp_iter = 1000, buffer_ext = 500, buffer_source = 50, save_res = FALSE,
-                 plot_eval = FALSE, saga_lib = saga)
+                 plot_eval = FALSE, saga_lib = NULL)
     
   }
 
