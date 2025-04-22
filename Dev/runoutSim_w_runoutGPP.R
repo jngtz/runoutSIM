@@ -22,7 +22,6 @@ source("./Dev/R/interactive_plot.R")
 # - 2nd estimate runout path (shorter runout will help reduce processing times.)
 
 # Task 04.22.2025
-# - transfer updates in walksToraster (runoutSim)
 # - transfer update in pcm_performance.R (runoptGPP)
 
 # Optimizing an individual runout path simulation ##############################
