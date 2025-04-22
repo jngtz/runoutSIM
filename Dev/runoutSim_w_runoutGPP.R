@@ -81,10 +81,10 @@ rw_opt_single
 
 ## PCM runout (length) ####
 pcm_runout <- pcmPerformance(dem, slide_plys = runout_polygon, slide_src = source_point,
-                      rw_slp = 40, rw_ex = 2.15, rw_per = 1.5,
-                      pcm_mu = 0.08, pcm_md = 40,
-                      gpp_iter = 1000, buffer_ext = 500, buffer_source = 50,
-                      plot_eval = TRUE, return_features = TRUE)
+                             rw_slp = 40, rw_ex = 2.15, rw_per = 1.5,
+                             pcm_mu = 0.08, pcm_md = 40,
+                             gpp_iter = 1000, buffer_ext = 500, buffer_source = 50,
+                             plot_eval = TRUE, return_features = TRUE)
 
 pcm_runout$length.error
 
