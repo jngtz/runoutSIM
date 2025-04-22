@@ -5,7 +5,7 @@ walksToRaster <- function(x, dem, weights = NULL){
   runout_raster <- terra::rast(dem)
   terra::values(runout_raster) <- NA
   
-  if(length(x) > 4){
+  if( !(is.list(x) && !is.null(names(x))) ){
     # for multiple walks from difference source points
     trav_freq <- sapply(x, function(x) x$cell_trav_freq)
     

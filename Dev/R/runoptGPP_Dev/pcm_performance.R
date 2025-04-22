@@ -144,7 +144,7 @@ pcmPerformance <- function(dem, slide_plys, slide_src, slide_id = 1,
     
     dem_terra <- terra::rast(dem_grid)
     
-    if(!length(slide_plys) == 1){
+    if(!nrow(source_plot) == 1){
       
       # Many source points
       source_l <- raster::xyFromCell(source_grid, which(values(source_grid) == 1))
