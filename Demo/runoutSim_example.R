@@ -1,8 +1,8 @@
-source("./R/pcm.R")
-source("./R/random_walk.R")
-source("./R/simulation_to_raster.R")
-source("./R/runout_connectivity.R")
-source("./R/interactive_plot.R")
+# source("./R/pcm.R")
+# source("./R/random_walk.R")
+# source("./R/simulation_to_raster.R")
+# source("./R/runout_connectivity.R")
+# source("./R/interactive_plot.R")
 
 # Create three examples
 # 1.) using points as source points
