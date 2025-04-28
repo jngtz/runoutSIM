@@ -18,6 +18,7 @@ source("./R/interactive_plot.R")
 library(terra)
 library(sf)
 library(mapview)
+library(runoutSim)
 
 # Load data ####################################################################
 
@@ -129,12 +130,12 @@ conn_prob <- connToRaster(rw_l, dem)
 
 trav_vel <- velocityToRaster(rw_l, dem)
 
-Leafplot(runout_polygons) %>%
-  Leafplot(trav_freq) %>%
-  Leafplot(trav_prob) %>%
-  Leafplot(conn_prob, palette = 'magma') %>%
-  Leafplot(trav_vel, palette = 'plasma') %>%
-  Leafplot(source_points, color = "red") %>%
-  Leafplot(river, color = "#99d2ff")
+leafplot(runout_polygons) %>%
+  leafplot(trav_freq) %>%
+  leafplot(trav_prob) %>%
+  leafplot(conn_prob, palette = 'magma') %>%
+  leafplot(trav_vel, palette = 'plasma') %>%
+  leafplot(source_points, color = "red") %>%
+  leafplot(river, color = "#99d2ff")
 
 
