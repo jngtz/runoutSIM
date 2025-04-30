@@ -63,7 +63,7 @@ leafmap(bnd_catchment,
            color = '#e74c3c') %>%
   
   
-  leafmap(hill, palette = grey(0:100/100), opacity = 1) %>%
+  leafmap(hill, palette = grey(0:100/100), opacity = 1, add_legend = FALSE) %>%
   
   leafmap(dem, palette = viridis::mako(10), opacity = 0.6) %>%
   

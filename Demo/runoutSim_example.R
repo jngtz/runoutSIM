@@ -40,6 +40,8 @@ source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
 # Load river data used for connecivity analysis
 river <- st_read("Data/river_channel.shp")
 
+leafmap()
+
 # Data pre-processing ##########################################################
 
 # We create a connectivity feature to allow for quicker processing 
@@ -119,23 +121,23 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
 
 stopCluster(cl) 
 
-trav_freq <- walksToRaster(rw_l, dem)
+trav_freq <- walksToRaster(multi_sim_paths, dem)
 trav_prob <- rasterCdf(trav_freq)
 
 # Source connectivity ##########################################################
 
-conn_prob <- connToRaster(rw_l, dem)
+conn_prob <- connToRaster(multi_sim_paths, dem)
 
 # Visualize results ############################################################
 
-trav_vel <- velocityToRaster(rw_l, dem)
+trav_vel <- velocityToRaster(multi_sim_paths, dem)
 
-leafplot(runout_polygons) %>%
-  leafplot(trav_freq) %>%
-  leafplot(trav_prob) %>%
-  leafplot(conn_prob, palette = 'magma') %>%
-  leafplot(trav_vel, palette = 'plasma') %>%
-  leafplot(source_points, color = "red") %>%
-  leafplot(river, color = "#99d2ff")
+leafmap(runout_polygons) %>%
+  leafmap(trav_freq) %>%
+  leafmap(trav_prob) %>%
+  leafmap(conn_prob, palette = 'magma') %>%
+  leafmap(trav_vel, palette = 'plasma') %>%
+  leafmap(source_points, color = "red") %>%
+  leafmap(river, color = "#99d2ff")
 
 

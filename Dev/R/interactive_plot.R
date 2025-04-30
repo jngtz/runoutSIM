@@ -3,16 +3,18 @@ require(leafem)
 
 
 
-Leafplot <- function(m = NULL,
-                        data = NULL,               # ← default data to NULL
-                        group_layers = NULL,
-                        label = NULL,
-                        opacity = 0.5,
-                        color = "black",
-                        radius = 3,
-                        weight = 2,
-                        palette = "viridis",
-                        basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap")) {
+leafmap<- function(m = NULL,
+                   data = NULL,               # ← default data to NULL
+                   group_layers = NULL,
+                   label = NULL,
+                   opacity = 0.5,
+                   color = "black",
+                   fill_color = color,
+                   radius = 3,
+                   weight = 2,
+                   palette = "viridis",
+                   basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap"),
+                   add_legend = TRUE) {
   
   # —— AUTO‐SWAP FOR STANDALONE VS PIPE —— #
   # if data was never given, but m *is* a raster or sf, assume user called
@@ -33,7 +35,7 @@ Leafplot <- function(m = NULL,
   
   # Initialize map if needed
   if (is.null(m)) {
-   m <- leaflet()
+    m <- leaflet()
     # add each provider as a base layer
     for (b in basemaps) {
       m <- m %>% addProviderTiles(providers[[b]], group = b)
@@ -46,51 +48,103 @@ Leafplot <- function(m = NULL,
   # Helper to track groups
   group_layers <- unique(c(group_layers, label))
   
-  # If raster
+  # if raster
   if (inherits(data, "Raster") || inherits(data, "SpatRaster")) {
-    # Project and round raster for display
-    sim_leaflet <- round(raster::raster(projectRasterForLeaflet(data, method = "bilinear")), 3)
     
-    # Get min/max values from raster
-    raster_range <- range(values(sim_leaflet), na.rm = TRUE)
-    
-    # Create color palette based on actual raster values
-    pal <- colorNumeric(palette, domain = raster_range, na.color = "#FF000000")
-    
-    m <- m %>%
-      addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
-                     project = TRUE, layerId = label, group = label) %>%
-      leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "") 
-    
-    m <- m %>%
-      addLegend(pal = pal, values = values(sim_leaflet), title = label, group = label) %>%
-      htmlwidgets::onRender(sprintf("
-    function(el, x) {
-      var legend = document.querySelectorAll('.leaflet-control .leaflet-control-legend')[0];
-      if (legend) legend.style.display = 'none';
-
-      var map = this;
-      map.on('overlayadd', function(e) {
-        if (e.name === '%s') {
-          if (legend) legend.style.display = 'block';
-        }
-      });
-      map.on('overlayremove', function(e) {
-        if (e.name === '%s') {
-          if (legend) legend.style.display = 'none';
-        }
-      });
+    if(inherits(data, "SpatRaster")){
+      data <- raster::raster(data)
     }
-  ", label, label))
+    
+    if(is.list(palette) && all(c("classes", "colors") %in% names(palette))){
+      sim_leaflet <- round(projectRasterForLeaflet(data, method = "ngb"), 3)
+    } else {
+      sim_leaflet <- round(projectRasterForLeaflet(data, method = "bilinear"), 3)
+    }
     
     
+    raster_vals <- raster::getValues(sim_leaflet)
+    
+    if (is.list(palette) && all(c("classes", "colors") %in% names(palette))) {
+      # Handle categorical raster
+      pal_classes <- palette$classes
+      pal_colors <- palette$colors
+      pal_labels <- if (!is.null(palette$labels)) palette$labels else as.character(pal_classes)
+      
+      if (length(pal_classes) != length(pal_colors)) stop("`palette$classes` and `palette$colors` must have the same length.")
+      if (length(pal_labels) != length(pal_classes)) stop("`palette$labels` must match the number of classes.")
+      
+      pal <- colorFactor(palette = pal_colors, domain = pal_classes, na.color = "#FF000000")
+      
+      m <- m %>%
+        leaflet::addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
+                                project = TRUE, layerId = label, group = label) %>%
+        leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+      
+      if(add_legend){
+        m <- leaflet::addLegend(m,
+                                colors = pal_colors,
+                                labels = pal_labels,
+                                title = label,
+                                group = label
+        )
+      }
+      
+      
+      
+    } else {
+      # Handle continuous raster
+      #raster_range <- range(raster_vals, na.rm = TRUE)
+      raster_range <- c(raster::minValue(sim_leaflet), raster::maxValue(sim_leaflet))
+      
+      # Ensure symmetric range around zero if values span negative and positive
+      if (raster_range[1] < 0 && raster_range[2] > 0) {
+        max_abs <- max(abs(raster_range))
+        raster_range <- c(-max_abs, max_abs)
+      }
+      
+      
+      pal <- colorNumeric(palette, domain = raster_range, na.color = "#FF000000")
+      
+      m <- m %>%
+        leaflet::addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
+                                project = TRUE, layerId = label, group = label) 
+      
+      
+      if(add_legend){
+        m <- leaflet::addLegend(m, pal = pal, values = raster_vals, title = label, group = label,
+                                labFormat = labelFormat(big.mark = "")) %>%
+          leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+      }
+      
+    }
+    
+    # Show/hide legend with layer toggles
+    m <- m %>%
+      htmlwidgets::onRender(sprintf("
+        function(el, x) {
+          var legend = document.querySelectorAll('.leaflet-control .leaflet-control-legend')[0];
+          if (legend) legend.style.display = 'none';
+
+          var map = this;
+          map.on('overlayadd', function(e) {
+            if (e.name === '%s') {
+              if (legend) legend.style.display = 'block';
+            }
+          });
+          map.on('overlayremove', function(e) {
+            if (e.name === '%s') {
+              if (legend) legend.style.display = 'none';
+            }
+          });
+        }
+      ", label, label))
     
   } else if (inherits(data, "sf")) {
-    x_longlat <- st_transform(data, '+proj=longlat +datum=WGS84')
-    geom_type <- unique(st_geometry_type(x_longlat))
+    x_longlat <- sf::st_transform(data, '+proj=longlat +datum=WGS84')
+    geom_type <- unique(sf::st_geometry_type(x_longlat))
     
     # Create popup content from attributes
-    attrs <- st_drop_geometry(data)
+    attrs <- sf::st_drop_geometry(data)
     
     popup_content <- sapply(seq_len(nrow(attrs)), function(i) {
       row     <- as.list(attrs[i, , drop = FALSE])
@@ -105,11 +159,11 @@ Leafplot <- function(m = NULL,
       # 1) Define a little <style> block up front
       style_block <- if (!is.null(scroll_div_style)) paste0(
         "<style>",
-          ".", scroll_div_style, " { max-height:350px; overflow-y:auto; }",
-          ".", scroll_div_style, "::-webkit-scrollbar { width:6px; }",
+        ".", scroll_div_style, " { max-height:350px; overflow-y:auto; }",
+        ".", scroll_div_style, "::-webkit-scrollbar { width:6px; }",
         ".", scroll_div_style, "::-webkit-scrollbar-track { background:transparent; border-radius:10px; }",
         ".", scroll_div_style, "::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.3); border-radius:10px; }",
-          ".", scroll_div_style, " { scrollbar-width: 5px; scrollbar-color: rgba(0,0,0,0.3) transparent; }",
+        ".", scroll_div_style, " { scrollbar-width: 5px; scrollbar-color: rgba(0,0,0,0.3) transparent; }",
         "</style>"
       ) else ""
       
@@ -131,23 +185,23 @@ Leafplot <- function(m = NULL,
     
     if (all(geom_type %in% c("POLYGON", "MULTIPOLYGON"))) {
       m <- m %>%
-        addPolygons(data = x_longlat, group = label,
-                    color = color, fillOpacity = opacity,
-                    weight = weight, opacity = 0.9,
-                    popup = popup_content[1])
+        leaflet::addPolygons(data = x_longlat, group = label,
+                             color = color, fillColor = fill_color, fillOpacity = opacity,
+                             weight = weight, opacity = 0.9,
+                             popup = popup_content[1])
       
     } else if (all(geom_type %in% c("LINESTRING", "MULTILINESTRING"))) {
       m <- m %>%
-        addPolylines(data = x_longlat, group = label,
-                     color = color, weight = weight, opacity = opacity,
-                     popup = popup_content)
+        leaflet::addPolylines(data = x_longlat, group = label,
+                              color = color, weight = weight, opacity = opacity,
+                              popup = popup_content)
       
     } else if (all(geom_type %in% c("POINT", "MULTIPOINT"))) {
       m <- m %>%
-        addCircleMarkers(data = x_longlat, group = label,
-                         radius = radius, color = color,
-                         stroke = TRUE, fillOpacity = opacity,
-                         popup = ~popup_content)
+        leaflet::addCircleMarkers(data = x_longlat, group = label,
+                                  radius = radius, color = color, fillColor = fill_color,
+                                  stroke = TRUE, fillOpacity = opacity,
+                                  popup = ~popup_content)
     } else {
       warning(paste("Unsupported geometry type:", paste(geom_type, collapse = ", ")))
     }
@@ -157,21 +211,21 @@ Leafplot <- function(m = NULL,
   
   # Update map with controls and tools
   m <- m %>%
-    addLayersControl(
+    leaflet::addLayersControl(
       baseGroups    = basemaps,
       overlayGroups = group_layers,
       position = "topleft",
       options       = layersControlOptions(collapsed = TRUE)
     ) %>%
-    addScaleBar("bottomleft") %>%
-    addMeasure("bottomleft",
-               primaryLengthUnit   = "meters",
-               secondaryLengthUnit = "kilometers",
-               primaryAreaUnit     = "hectares",
-               secondaryAreaUnit   = "sqmeters")
+    leaflet::addScaleBar("bottomleft") %>%
+    leaflet::addMeasure("bottomleft",
+                        primaryLengthUnit   = "meters",
+                        secondaryLengthUnit = "kilometers",
+                        primaryAreaUnit     = "hectares",
+                        secondaryAreaUnit   = "sqmeters")
   
   attr(m, "group_layers") <- group_layers
   return(m)
-
+  
 }
 
