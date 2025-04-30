@@ -2,7 +2,6 @@ require(leaflet)
 require(leafem)
 
 
-
 leafmap<- function(m = NULL,
                    data = NULL,               # ← default data to NULL
                    group_layers = NULL,
