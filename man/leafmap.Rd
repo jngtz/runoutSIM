@@ -15,7 +15,8 @@ leafmap(
   radius = 3,
   weight = 2,
   palette = "viridis",
-  basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap")
+  basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap"),
+  add_legend = TRUE
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ leafmap(
 \item{palette}{Color palette name used with \code{leaflet::colorNumeric()} for raster coloring. Defaults to \code{"viridis"}. If categorical values, supply a list - e.g.  list(classes = 1, colors = "#99d2ff", labels = "Water"))}
 
 \item{basemaps}{Character vector of tile provider names (from \code{leaflet::providers}) to include as base layers. Defaults to \code{c("Esri.WorldImagery", "Esri.WorldTopoMap")}.}
+
+\item{add_legend}{Logical to produce a legend or not. Defaults to \code{TRUE}. Also controls if raster value query appears.}
 }
 \value{
 A \code{leaflet} map object with the data layer(s) and controls.
