@@ -21,8 +21,6 @@ source("./Dev/R/interactive_plot.R")
 # - 1st estimate runout distance PCM (quicker)
 # - 2nd estimate runout path (shorter runout will help reduce processing times.)
 
-# Task 04.22.2025
-# - transfer update in pcm_performance.R (runoptGPP)
 
 # Optimizing an individual runout path simulation ##############################
 
@@ -120,11 +118,9 @@ setwd("C:\\sda\\Workspace\\sedconnect")
 plot(terra::rast(dem))
 plot(as_Spatial(runout_polygons), add = TRUE)
 
-steps <- 11
-rwexp_vec <- seq(1.3, 3, len=steps)
-rwper_vec <- seq(1.5, 2, len=steps)
-rwslp_vec <- seq(20, 40, len=steps)
-
+rwexp_vec <- seq(1.2, 3, by=.2)  
+rwper_vec <- seq(1.5, 2, by=0.05)   
+rwslp_vec <- seq(25, 35, by=1)   
 rwexp_vec
 
 
@@ -151,7 +147,13 @@ rw_gridsearch_multi <-
   }
 
 parallel::stopCluster(cl)
+save(rw_gridsearch_multi, file = "rw_gridsearch.Rd")
 
+
+setwd("C:\\sda\\Workspace\\sedconnect")
+(load("rw_gridsearch.Rd"))
+rw_opt <- rwGetOpt(rw_gridsearch_multi, measure = median)
+rw_opt
 
 pcmmd_vec <- seq(20, 150, by=5) # mass-to-drag ratio (m)
 pcmmu_vec <- seq(0.04, 0.6, by=0.01) # sliding friction coefficient 
@@ -165,7 +167,7 @@ doParallel::registerDoParallel(cl)
 pcm_gridsearch_multi <-
   foreach(poly_id=polyid_vec, .packages=c('raster', 'ROCR', 'Rsagacmd', 'sf', 'runoutSim', 'terra')) %dopar% {
     
-    .GlobalEnv$saga <- saga
+    #.GlobalEnv$saga <- saga
     
     pcmGridsearch(dem,
                   slide_plys = runout_polygons, slide_src = source_points, slide_id = poly_id,
@@ -174,7 +176,8 @@ pcm_gridsearch_multi <-
                   gpp_iter = 1000,
                   buffer_ext = 500, buffer_source = NULL,
                   predict_threshold = 0.5,
-                  plot_eval = FALSE, saga_lib = saga)
+                  save_res = TRUE,
+                  plot_eval = FALSE, saga_lib = NULL)
     
   }
 
@@ -182,6 +185,8 @@ parallel::stopCluster(cl)
 
 
 # Test multi-objective Baysiean optimization ###################################
+
+# Would be good for hybrid modelling - using custom cost function 
 
 library(mlrMBO)
 library(mlr)
@@ -263,19 +268,25 @@ leafplot(data = run_res) %>% leafplot(data = ply_res)
 
 
 # Test regional optimization ####################################################
+# This optimizes each landslide individually
 
 ## Test runout on all slides
 
-for(i in 29:nrow(runout_polygons)){
+for(i in 60:nrow(runout_polygons)){
   print(i)
   pcm_runout <- pcmPerformance(dem, slide_plys = runout_polygons, slide_src = source_points,
                                slide_id = i,
                                rw_slp = run$x$slp, rw_ex = run$x$ex, rw_per = run$x$per,
                                pcm_mu = run$x$mu, pcm_md = 40,
-                               gpp_iter = 1000, buffer_ext = 1000, buffer_source = 40,
+                               gpp_iter = 1000, buffer_ext = 1000, buffer_source = 30,
                                plot_eval = TRUE, return_features = TRUE)
 }
 
+# ────────────────────────────────────────────────────────────────────────────
+# 1) Libraries & cluster setup
+# ────────────────────────────────────────────────────────────────────────────
+
+# Not working, error is in the foreah loop setup, need to better put it together...
 
 library(mlrMBO)
 library(mlr)
@@ -285,94 +296,201 @@ library(lhs)
 library(doParallel)
 library(foreach)
 
-# 1) Set up your fixed objects
+# number of cores for the inner foreach
+ncores <- parallel::detectCores() - 1
+cl     <- makeCluster(ncores)
+registerDoParallel(cl)
+
+# make sure each worker has access to your data + function
+clusterExport(cl, c("dem", "runout_polygons", "source_points", "pcmPerformance",
+                    "runoutSim"))
+
+# load required packages on each worker
+clusterEvalQ(cl, {
+  library(raster); library(terra)
+  library(sp);     library(sf)
+  library(ROCR);   library(Rsagacmd)
+  library(runoutSim); library(runoptGPP)
+  TRUE
+})
+
+# ────────────────────────────────────────────────────────────────────────────
+# 2) Parameter space, surrogate & MBO control
+# ────────────────────────────────────────────────────────────────────────────
 ps <- makeParamSet(
   makeIntegerParam("slp", lower = 20L, upper = 50L),
-  makeIntegerParam("ex",  lower = 1L, upper = 3L),
+  makeIntegerParam("ex",  lower = 1L,  upper = 3L),
   makeNumericParam("per", lower = 1.5, upper = 2),
   makeNumericParam("mu",  lower = 0.04, upper = 0.6)
 )
 
-lrn <- makeLearner("regr.km", predict.type = "se")
+lrn  <- makeLearner("regr.km", predict.type = "se")
 ctrl <- makeMBOControl()
-ctrl <- setMBOControlTermination(ctrl, iters = 20)
+ctrl <- setMBOControlTermination(ctrl, iters = 30)
 ctrl <- setMBOControlInfill(ctrl, crit = makeMBOInfillCritEI())
 
-# 2) Parallel backend
-Sys.time()
-n.cores <- parallel::detectCores() - 1
-cl <- makeCluster(20)
-registerDoParallel(cl)
+# ────────────────────────────────────────────────────────────────────────────
+# 3) Global objective function
+# ────────────────────────────────────────────────────────────────────────────
+obj.fun <- makeSingleObjectiveFunction(
+  name = "Global Runout Optimization",
+  fn   = function(x) {
+    x <- as.list(x)
+    
+    # inner parallel loop: evaluate pcmPerformance on every slide
+    results_df <- foreach(
+      i = seq_len(nrow(runout_polygons)),
+      .combine = rbind
+    ) %dopar% {
+      out <- 
+        pcmPerformance(
+          dem            = dem,
+          slide_plys     = runout_polygons,
+          slide_src      = source_points,
+          slide_id       = i,
+          rw_slp         = x$slp,
+          rw_ex          = x$ex,
+          rw_per         = x$per,
+          pcm_mu         = x$mu,
+          pcm_md         = 40,
+          gpp_iter       = 1000,
+          buffer_ext     = 500,
+          buffer_source  = 20,
+          plot_eval      = FALSE,
+          return_features= FALSE
+        )
 
-# 3) Slide IDs
-slide_ids <- 1:nrow(runout_polygons)
-
-# 4) Run MBO for each slide in parallel
-results <- foreach(
-  slide = slide_ids,
-  .packages = c("mlrMBO","mlr","DiceKriging","ParamHelpers","lhs",
-                'raster', 'ROCR', 'Rsagacmd', 'sf', 'runoutSim', 'terra'),
-  .combine  = rbind
-) %dopar% {
-  
-  # build objective for this slide
-  obj.fun <- makeSingleObjectiveFunction(
-    name = paste0("runout_slide_", slide),
-    fn = function(x) {
-      x <- as.list(x)
-      res <- pcmPerformance(
-        dem          = dem,
-        slide_plys   = runout_polygons,
-        slide_src    = source_points,
-        slide_id     = slide,
-        rw_slp       = x$slp,
-        rw_ex        = x$ex,
-        rw_per       = x$per,
-        pcm_mu       = x$mu,
-        pcm_md       = 40,
-        gpp_iter     = 1000,
-        buffer_ext   = 500,
-        buffer_source= 20,
-        plot_eval    = FALSE,
-        return_features = FALSE
+      data.frame(
+        id      = i,
+        roc     = out$roc,
+        len_err = out$length.error,
+        #len_rerr = out$ length.relerr,
+        stringsAsFactors = FALSE
       )
-      # minimize: –AUC + |length.err|
-      return(-res$roc + abs(res$length.error))
-    },
-    par.set  = ps,
-    minimize = TRUE
-  )
-  
-  # initial design
-  design <- generateDesign(
-    n       = 5 * length(ps$pars),
-    par.set = ps,
-    fun     = maximinLHS
-  )
-  
-  # run MBO
-  run <- mbo(
-    fun     = obj.fun,
-    design  = design,
-    learner = lrn,
-    control = ctrl,
-    show.info = FALSE
-  )
-  
-  # return a one‐row data.frame of results
-  data.frame(
-    slide = slide,
-    slp   = run$x$slp,
-    ex    = run$x$ex,
-    per   = run$x$per,
-    mu    = run$x$mu,
-    obj   = run$y,
-    stringsAsFactors = FALSE
-  )
-}
+    }
+    
+    # remove NAs
+    valid <- complete.cases(results_df)
+    results_df <- results_df[valid,]
 
+    
+    # compute the global loss: mean(–ROC) + mean(|len_err|)
+    score <- -mean(results_df$roc) + mean(abs(results_df$len_err))
+  },
+  par.set  = ps,
+  minimize = TRUE
+)
+
+# ────────────────────────────────────────────────────────────────────────────
+# 4) Initial design & run MBO
+# ────────────────────────────────────────────────────────────────────────────
+design <- generateDesign(
+  n       = 5 * length(ps$pars),
+  par.set = ps,
+  fun     = lhs::maximinLHS
+)
+
+global_run <- mbo(
+  fun      = obj.fun,
+  design   = design,
+  learner  = lrn,
+  control  = ctrl,
+  show.info= TRUE
+)
+
+# ────────────────────────────────────────────────────────────────────────────
+# 5) Clean up & results
+# ────────────────────────────────────────────────────────────────────────────
 stopCluster(cl)
 
-# results is now a data.frame with one row per slide
-print(results)
-Sys.time()
+cat("Best global parameters:\n")
+print(global_run$x)
+cat("Global objective value:\n")
+print(global_run$y)
+
+# PRoposed approach ###########################################################
+
+# We use Bayesian optimization to find the optimal values of a spatial mu
+# that reduce the runout length
+
+# the random walk parameters will be estimated on experimentation or optimized
+# without pcm, then we will focus on optimizing only pcm
+
+
+
+#https://medium.com/data-science/bayesian-optimization-concept-explained-in-layman-terms-1d2bcdeaf12f
+
+
+# Libraries (load or install)
+library(mlrMBO)
+library(ParamHelpers)
+library(mlr)  # Required for some mlrMBO dependencies
+library(ggplot2)
+
+# Your raster covariates (e.g., forest, carea, precip) must be pre-loaded and aligned rasters
+# Your fixed parameters for PCM (e.g., fix_slp, fix_ex, fix_md, etc.) should be defined
+# Your pcmPerformance() function should be in memory
+
+# Parameter space definition
+ps <- makeParamSet(
+  makeNumericParam("intercept", lower = -10, upper = 10),
+  makeNumericParam("x1", lower = 2,  upper = 5),
+  makeNumericParam("x2", lower = 1.5, upper = 2),
+  makeNumericParam("x3", lower = 0.04, upper = 0.6)
+)
+
+# Objective function
+sp_obj.fun <- makeSingleObjectiveFunction(
+  name = "Spatial mu Optimization",
+  fn = function(x) {
+    # Extract values
+    intercept <- x$intercept
+    x1 <- x$x1
+    x2 <- x$x2
+    x3 <- x$x3
+    
+    # Build spatial mu from covariates
+    sp_mu <- intercept + x1 * forest + x2 * carea + x3 * precip
+    
+    # may need to transform sp_mu into a range of meaninful values
+    
+    # Run PCM and get performance
+    res <- pcmPerformance(
+      dem            = dem,
+      slide_plys     = runout_polygons,
+      slide_src      = source_points,
+      slide_id       = slide,
+      rw_slp         = fix_slp,
+      rw_ex          = fix_ex,
+      rw_per         = fix_per,
+      pcm_mu         = sp_mu,
+      pcm_md         = fix_md,
+      gpp_iter       = 1000,
+      buffer_ext     = 500,
+      buffer_source  = 20,
+      plot_eval      = FALSE,
+      return_features= FALSE
+    )
+    
+    return(res$length.relerror)  # Minimize this
+  },
+  par.set = ps,
+  minimize = TRUE
+)
+
+# Control settings
+ctrl <- makeMBOControl()
+ctrl <- setMBOControlTermination(ctrl, iters = 30)  # Adjust iterations as needed
+ctrl <- setMBOControlInfill(ctrl, crit = makeMBOInfillCritEI())  # Expected Improvement
+
+# Surrogate model: using kriging
+surrogate.lrn <- makeLearner("regr.km", predict.type = "se")
+
+# Run Bayesian Optimization
+design <- generateDesign(n = 10, par.set = ps, fun = lhs::maximinLHS)
+
+run <- mbo(fun = sp_obj.fun, design = design, learner = surrogate.lrn, control = ctrl)
+
+# View results
+print(run)
+plot(run)
