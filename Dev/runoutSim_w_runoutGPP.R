@@ -195,8 +195,8 @@ library(ParamHelpers)
 
 # Define the parameter space
 ps <- makeParamSet(
-  makeIntegerParam("slp", lower = 20L, upper = 50L),   # slope threshold
-  makeIntegerParam("ex", lower = 1L, upper = 3L),      # lateral spread exponent
+  makeIntegerParam("slp", lower = 20, upper = 50),   # slope threshold
+  makeIntegerParam("ex", lower = 1, upper = 3),      # lateral spread exponent
   makeNumericParam("per", lower = 1.5, upper = 2),     # persistence
   makeNumericParam("mu", lower = 0.04, upper = 0.6)    # friction
   # md is fixed in the function

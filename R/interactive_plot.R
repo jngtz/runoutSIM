@@ -224,25 +224,37 @@ leafmap<- function(m = NULL,
       )
     })
     
-    if (all(geom_type %in% c("POLYGON", "MULTIPOLYGON"))) {
-      m <- m %>%
-        leaflet::addPolygons(data = x_longlat, group = label,
-                    color = color, fillColor = fill_color, fillOpacity = opacity,
-                    weight = weight, opacity = 0.9,
-                    popup = popup_content[1])
-      
-    } else if (all(geom_type %in% c("LINESTRING", "MULTILINESTRING"))) {
-      m <- m %>%
-        leaflet::addPolylines(data = x_longlat, group = label,
-                     color = color, weight = weight, opacity = opacity,
-                     popup = popup_content)
-      
-    } else if (all(geom_type %in% c("POINT", "MULTIPOINT"))) {
-      m <- m %>%
-        leaflet::addCircleMarkers(data = x_longlat, group = label,
-                         radius = radius, color = color, fillColor = fill_color,
-                         stroke = TRUE, fillOpacity = opacity,
-                         popup = ~popup_content)
+    if (any(geom_type %in% c("POINT", "MULTIPOINT"))) {
+      m <- m %>% addCircleMarkers(
+        data = x_longlat,
+        radius = radius,
+        weight = weight,
+        color = color,
+        fillColor = fill_color,
+        fillOpacity = opacity,
+        label = ~label,
+        popup = popup_content,
+        group = label
+      )
+    } else if (any(geom_type %in% c("LINESTRING", "MULTILINESTRING"))) {
+      m <- m %>% addPolylines(
+        data = x_longlat,
+        weight = weight,
+        color = color,
+        opacity = opacity,
+        popup = popup_content,
+        group = label
+      )
+    } else if (any(geom_type %in% c("POLYGON", "MULTIPOLYGON"))) {
+      m <- m %>% addPolygons(
+        data = x_longlat,
+        weight = weight,
+        color = color,
+        fillColor = fill_color,
+        fillOpacity = opacity,
+        popup = popup_content,
+        group = label
+      )
     } else {
       warning(paste("Unsupported geometry type:", paste(geom_type, collapse = ", ")))
     }
