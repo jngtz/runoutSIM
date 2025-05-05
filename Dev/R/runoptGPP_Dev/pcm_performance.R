@@ -110,7 +110,12 @@ pcmPerformance <- function(dem, slide_plys, slide_src, slide_id = 1,
   slide_poly_single <- slide_plys[slide_id,]
 
   # Crop dem to slide polygon
-  dem_grid <- raster::crop(dem, raster::extent(slide_poly_single) + buffer_ext)
+  if(!is.null(buffer_ext)){
+    dem_grid <- raster::crop(dem, raster::extent(slide_poly_single) + buffer_ext)
+  } else {
+    dem_grid <- dem
+  }
+  
 
   if(class(slide_src) == "SpatialPointsDataFrame"){
     # Subset corresponding source/start point of runout
