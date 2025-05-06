@@ -1,8 +1,8 @@
-library(raster) # dealing with gridded data
+library(terra) # dealing with gridded data
 #library(rgdal)
 library(sp) # spatial data point, polygon, line
 library(sf)
-library(mapview)
+library(runoutSim)
 
 
 # Functions ##############################################################
@@ -35,16 +35,21 @@ gMeanThreshold <- function(predict, response, plot_curve = FALSE) {
 #setwd("/home/jason/Data/m_buchhart/")
 #setwd("C:/Users/ku52jek/Google Drive/UniProjects/supervise/bachelor/max_buchhart/data")
 #setwd("C:\\Users\\jgoetz\\OneDrive - Wilfrid Laurier University\\Documents\\GitProjects\\sedconnect\\Data")
-setwd("~/Desktop/sda/sedconnect/data")
+
 
 
 # Read Polygons and Source Points using RGDAL package
-runout_polygons <- st_read("debris_flow_runout_polygons.shp")
-source_points <- st_read("debris_flow_source_points.shp")
+source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
+runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
 
-runout_polygons
+river_channel <- st_read("Dev/Data/river_channel.shp")
 
-river_channel <- st_read("river_channel.shp")
+bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+
+leafmap(source_points, color = "red") %>% leafmap(runout_polygons) %>% 
+  leafmap(river_channel, col = "#2e86c1") %>% 
+  leafmap(bnd_catchment, col = "white", fill_color = "#FF000000",
+          weight = 4)
 
 # Convert to sp objects
 runout_polygons <- as_Spatial(st_zm(runout_polygons))
@@ -52,7 +57,7 @@ source_points <- as_Spatial(st_zm(source_points))
 river_channel <- as_Spatial(st_zm(river_channel))
 
 # Read raster using raster package
-dem <- raster("elev.tif")
+dem <- rast("Dev/Data/elev_nosinks.tif")
 dem
 
 # Note: This DEM is from the (free) publicly available ALOS PALSAR Radiometric Terrain Corrected
@@ -64,26 +69,17 @@ dem
 
 #       https://asf.alaska.edu/data-sets/derived-data-sets/alos-palsar-rtc/alos-palsar-radiometric-terrain-correction/
 
-# Make a hillslope
-slope <- terrain(dem, opt='slope')
-aspect <- terrain(dem, opt='aspect')
-hs <- hillShade(slope, aspect, 40, 270)
-
-# Plot data
-plot(hs, col=grey(0:100/100), legend = FALSE)
-plot(dem, col=terrain.colors(25, alpha=0.35), add = TRUE)
-plot(runout_polygons, add = TRUE)
 
 # Read terrain attribute data
-layer_files <- c("elev.tif",
-                 "cslope.tif",
-                 "slope.tif",
-                 "logcarea.tif",
-                 "plan_curv.tif",
-                 "prof_curv.tif",
-                 "swi.tif")
+layer_files <- c("Data/elev.tif",
+                 "Data/cslope.tif",
+                 "Data/slope.tif",
+                 "Data/logcarea.tif",
+                 "Data/plan_curv.tif",
+                 "Data/prof_curv.tif",
+                 "Data/swi.tif")
 
-layers <- stack(layer_files)
+layers <- rast(layer_files)
 plot(layers)
 
 # Note: These terrain attributes were processed using SAGA-GIS.
@@ -93,18 +89,18 @@ plot(layers)
 #       tools were used to compute the terrain attributes.
 
 # Create mask of study area
-mask_v <- getValues(layers$elev)
+mask_v <- values(layers$elev)
 mask_v[!is.na(mask_v)] = 1
 mask_area <- setValues(layers$elev, mask_v)
 
 # Mask out runout polygons as well
-mask_area <- mask(mask_area,runout_polygons, inverse = TRUE)
-mask_area <- mask(mask_area, river_channel, inverse = TRUE)
+mask_area <- mask(mask_area,vect(runout_polygons), inverse = TRUE)
+mask_area <- mask(mask_area, vect(river_channel), inverse = TRUE)
 
 # Create 
 runout_area <- setValues(layers$elev, mask_v)
-runout_area <- mask(runout_area, runout_polygons)
-runout_area <- mask(runout_area, river_channel, inverse = TRUE)
+runout_area <- mask(runout_area, vect(runout_polygons))
+runout_area <- mask(runout_area, vect(river_channel), inverse = TRUE)
 
 # Create model sample ####################################################
 
@@ -116,16 +112,18 @@ runout_area <- mask(runout_area, river_channel, inverse = TRUE)
 set.seed(1234)
 
 # first, we randomly sample cell locations within slides
-smp.slides <- as.data.frame(sampleRandom(runout_area, size = 500, xy = TRUE))
+smp.slides <- spatSample(runout_area, size = 500, xy = TRUE, as.df = TRUE,
+                         method = "random", na.rm = TRUE)
 smp.slides[,3] = NULL
 plot(runout_area)
 points(smp.slides)
 
 
 # randomly sample cell locations of non-slide cells
-smp.noslides <- as.data.frame(sampleRandom(mask_area, size = 500, xy = TRUE))
+smp.noslides <- spatSample(mask_area, size = 500, xy = TRUE, as.df = TRUE,
+                           method = "random", na.rm = TRUE)
 smp.noslides[,3] = NULL
-points(smp.noslides)
+points(smp.noslides, pch = 20)
 
 # extract predictor variable values from grids
 # for the slide samples
@@ -239,34 +237,31 @@ layers$prof_curv[layers$plan_curv > 0.1] <- 0.1
 layers$prof_curv[layers$plan_curv < -0.1] <- -0.1
 
 
-pred.gam<- raster::predict(layers, model.gam, type = "response", progress = TRUE)
+pred.gam<- terra::predict(layers, model.gam, type = "response", progress = TRUE)
 
 # Mask out areas in river channel bead
-maskpred.gam <- mask(pred.gam, river_channel, inverse = TRUE)
+maskpred.gam <- mask(pred.gam, vect(river_channel), inverse = TRUE)
+
 # export to a raster format
-writeRaster(maskpred.gam, "src_pred_mask.tiff", format = "GTiff", overwrite = TRUE)
+writeRaster(maskpred.gam, "Data/src_pred_mask.tif", overwrite = TRUE)
 
 
 # Plot prediction map ####################################################
 
 library(viridis) # for virdis colour palette
 
-par(mfrow = c(1,2))
-plot(hs, col=grey(0:100/100), legend = FALSE, main = "Release susceptibility")
-plot(maskpred.gam, col=viridis(10, alpha=0.4, direction = -1), add = TRUE)
-plot(runout_polygons, add = TRUE)
-plot(source_points, add = TRUE)
+leafmap(maskpred.gam, label = "Source area probability")
 
 
 # Automatically classifiy source areas ##########################################
 
-src_class <- maskpred.gam(m)
+src_class <- maskpred.gam
 
 d$pred <- as.numeric(predict(model.gam, type = "response", newdata = d))
 
 
 # Determine optimital prediction threshold to classify source areas ##############
-opt_threshold <- gMeanThreshold(est_src, obs_src, plot_curve = TRUE)
+opt_threshold <- gMeanThreshold(d$pred, d$slide, plot_curve = TRUE)
 
 perf <- ROCR::performance(ROCR::prediction(d$pred, d$slide), "tpr", "fpr")
 df <- data.frame(cut = perf@alpha.values[[1]], fpr = perf@x.values[[1]], tpr = perf@y.values[[1]])
@@ -291,14 +286,13 @@ src_class[src_class >= opt_threshold] <- 1
 src_class[src_class < opt_threshold] <- 0
 src_class[src_class == 0] <- NA
 
-plot(source_class)
+plot(src_class)
 
-writeRaster(src_class, filename = "auto_classified_source_areas.tif", format = "GTiff",
+writeRaster(src_class, filename = "Data/auto_classified_source_areas.tif",
             overwrite = TRUE)
 
-plot(hs, col=grey(0:100/100), legend = FALSE, main = "Release classification")
-plot(src_class, alpha = 0.6, add = TRUE)
-plot(runout_polygons, add = TRUE)
+
+leafmap(src_class, palette = list(classes = 1, colors = "#e5207a", labels = "Source area"))
 
 
 # Make figures ###############################################################
@@ -317,16 +311,16 @@ river <- readOGR(".", "river_rio_olivares")
 river_buff <- buffer(river, 30)
 object = rasterize(river_buff, dem)
 
-rivers <- st_read("river_rio_olivares.shp")
-runout <- st_read("debris_flow_runout_polygons.shp")
+rivers <- st_read("Dev/Data/river_rio_olivares.shp")
+runout <- st_read("Dev/Data/debris_flow_runout_polygons.shp")
 
 
 source_cells <- src_class
 
 # For visualization make a hillshade model from the DEM
-slope <- terrain(dem, opt='slope')
-aspect <- terrain(dem, opt='aspect')
-hillshade <- hillShade(slope, aspect, angle=40, direction=270)
+slope <- terrain(dem, "slope", unit="radians")
+aspect <- terrain(dem, "aspect", unit="radians")
+hillshade <- shade(slope, aspect, 40, 270)
 
 # Transform raster data into a data frame for use with ggplot
 hillshade_df <- as.data.frame(hillshade, xy = TRUE)
@@ -346,7 +340,7 @@ class_df<- gppGGplot(src_class)
 
 map.pred <- ggplot() +
   geom_sf() +
-  geom_raster(data=hillshade_df, aes(x=x, y=y, fill = layer),
+  geom_raster(data=hillshade_df, aes(x=x, y=y, fill = hillshade),
               show.legend = FALSE) +
   scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
   
@@ -371,9 +365,9 @@ map.pred <- ggplot() +
         axis.text = element_text(size = 6), axis.text.y = element_text(angle = 90),
         legend.key.width=unit(0.5,"cm"), legend.key.height = unit(0.5, "cm"))
 
-map.class<- ggplot() +
+map.class <- ggplot() +
   geom_sf() +
-  geom_raster(data=hillshade_df, aes(x=x, y=y, fill = layer),
+  geom_raster(data=hillshade_df, aes(x=x, y=y, fill = hillshade),
               show.legend = FALSE) +
   scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
   
@@ -381,7 +375,7 @@ map.class<- ggplot() +
   
   new_scale("fill") +
   geom_tile(data=class_df, aes(x=x, y=y, fill = "") ) +
-  scale_fill_manual(name = "Opt. source\nareas", values = "#162654" ) +
+  scale_fill_manual(name = "Opt. source\nareas", values = "#e5207a" ) +
   
   geom_sf(data = rivers, colour = "#85C1E9", fill = alpha("#85C1E9", 0.5)) +
   #geom_sf(data = water, colour = "#85C1E9", fill = "#85C1E9") +
