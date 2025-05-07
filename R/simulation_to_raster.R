@@ -19,6 +19,9 @@
 #' @export
 
 walksToRaster <- function(x, dem, weights = NULL){
+  
+  #remove any with NA cell traversed
+  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
 
   runout_raster <- terra::rast(dem)
   terra::values(runout_raster) <- NA
@@ -82,6 +85,10 @@ walksToRaster <- function(x, dem, weights = NULL){
 #' @export
 
 connToRaster <- function(x, dem){
+  
+  #remove any with NA cell traversed
+  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
+  
   prob_connect <- round(sapply(x, function(x) x$prob_connect),3)
   cell_index <- sapply(x, function(x) x$start_cell)
   
@@ -116,6 +123,9 @@ connToRaster <- function(x, dem){
 #' @export
 
 velocityToRaster <- function(x, dem, method = "max"){
+  
+  #remove any with NA cell traversed
+  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
   
   r <- terra::rast(dem)
   terra::values(r) <- NA
