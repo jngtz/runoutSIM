@@ -6,6 +6,9 @@
 #'
 #' @param x A list of runout simulation outputs (e.g., from `runoutSim()`).
 #' @param dem A `SpatRaster` object representing the reference DEM.
+#' @param method Method of combining overlaying runout paths: "freq" and "cdf_prob" calculate the traverse frequency 
+#' and cumulative distribution function probabilities for simulations from a single source cell. "max_cdf_prob" and "avg_cdf_prob"
+#' calculate the maximum/average empirical probabilites from CDF's applied to walks from invididual source cells.
 #' @param weights Optional numeric vector of weights (same length as `x`) to scale traverse frequencies.
 #'
 #' @return A `SpatRaster` with cell values representing weighted or unweighted traverse frequencies.
@@ -18,15 +21,18 @@
 #' }
 #' @export
 
-walksToRaster <- function(x, dem, weights = NULL){
+walksToRaster <- function(x, dem, method = "freq", weights = NULL){
   
-  #remove any with NA cell traversed
-  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
+  # Method = freq, avg_cdf_prob, and max_cdf_prob, cdf_prob (for single source)
 
   runout_raster <- terra::rast(dem)
   terra::values(runout_raster) <- NA
   
   if(!(is.list(x) && !is.null(names(x)))){
+    
+    #remove any with NA cell traversed
+    x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
+    
     # for multiple walks from difference source points
     trav_freq <- sapply(x, function(x) x$cell_trav_freq)
     
@@ -37,11 +43,37 @@ walksToRaster <- function(x, dem, weights = NULL){
       
     }
     
-    d <- unlist(trav_freq)
     
-    # combine overlaying traverse frequencies
-    combine_d <- tapply(d, names(d), sum, simplify = TRUE) 
+    if(method == "freq"){
+      d <- unlist(trav_freq)
+
+      # combine overlaying traverse frequencies
+      combine_d <- tapply(d, names(d), sum, simplify = TRUE) 
+  
+    }
     
+    if(method == "avg_cdf_prob"){
+      
+      trav_eprob <- sapply(trav_freq, function(x) cdfProb(x))
+      
+      d <- unlist(trav_eprob)
+      
+      # combine overlaying traverse frequencies
+      combine_d <- tapply(d, names(unlist(trav_freq)), mean, simplify = TRUE) 
+      
+    }
+    
+    
+    if(method == "max_cdf_prob"){
+      trav_eprob <- sapply(trav_freq, function(x) cdfProb(x))
+      
+      d <- unlist(trav_eprob)
+      
+      # combine overlaying traverse frequencies
+      combine_d <- tapply(d, names(unlist(trav_freq)), max, simplify = TRUE) 
+      
+    }
+   
     
     runout_raster[as.numeric(names(combine_d))] <- as.numeric(combine_d)
     
@@ -49,17 +81,21 @@ walksToRaster <- function(x, dem, weights = NULL){
     # for walks from one source
     cell_counts <- x$cell_trav_freq
     
-    # Assign counts to the raster
-    runout_raster[as.numeric(names(cell_counts))] <- as.numeric(cell_counts)
-    
     if(!is.null(weights)){
       runout_raster <- runout_raster*weights
     }
     
+    if(method == "cdf_prob"){
+      cell_counts <- cdfProb(cell_counts)
+    }
+    
+    # Assign counts to the raster
+    runout_raster[as.numeric(names(x$cell_trav_freq))] <- as.numeric(cell_counts)
+   
   }
   
   # Add name attibutes
-  names(runout_raster) <- "traverse_freq"
+  names(runout_raster) <- method
   varnames(runout_raster) <- "runout_walks"
   return(runout_raster)
   
@@ -183,3 +219,25 @@ rasterCdf <- function(x){
   prob_x
   
 }
+
+#' Convert Raster Values to Cumulative Distribution
+#'
+#' Applies an empirical cumulative distribution function (ECDF) to raster values,
+#' returning a raster where each cell reflects its percentile rank.
+#'
+#' @param x A vector
+#'
+#' @return A vector of empirical probabilities
+#'
+#' @examples
+#' \dontrun{
+#' test <- cdfProb(c(1,2,3,4,5))
+#' }
+#' @export
+
+cdfProb <- function(x){
+  x_ecdf <- stats::ecdf(x)
+  prob_den <- x_ecdf(x)
+  return(prob_den)
+}
+
