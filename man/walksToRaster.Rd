@@ -4,12 +4,16 @@
 \alias{walksToRaster}
 \title{Convert Random Walk Results to Raster}
 \usage{
-walksToRaster(x, dem, weights = NULL)
+walksToRaster(x, dem, method = "freq", weights = NULL)
 }
 \arguments{
 \item{x}{A list of runout simulation outputs (e.g., from \code{runoutSim()}).}
 
 \item{dem}{A \code{SpatRaster} object representing the reference DEM.}
+
+\item{method}{Method of combining overlaying runout paths: "freq" and "cdf_prob" calculate the traverse frequency
+and cumulative distribution function probabilities for simulations from a single source cell. "max_cdf_prob" and "avg_cdf_prob"
+calculate the maximum/average empirical probabilites from CDF's applied to walks from invididual source cells.}
 
 \item{weights}{Optional numeric vector of weights (same length as \code{x}) to scale traverse frequencies.}
 }
