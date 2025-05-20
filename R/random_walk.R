@@ -230,10 +230,12 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       
       # below are breaks to stop the walk if step is at an edge of the raster
       if(cntr_cell[1]+1 > nrow(m_dem)){
+        #vel_cells[[i]] <- 0
         break # stop if at edge of DEM raster
       }
       
       if(cntr_cell[2]+1 > ncol(m_dem)){
+        #vel_cells[[i]] <- 0
         break # stop if at edge
       }
       
@@ -241,10 +243,12 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       elv_values <- m_dem[d]
       
       if(any(is.na(elv_values))){
+        #vel_cells[[i]] <- 0
         break # stop if at edge
       }
       
       if(length(elv_values) < 8){
+        #vel_cells[[i]] <- 0
         break # stop if at edge
       }
       
@@ -257,6 +261,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       lower_elv <- elv_ngh < elv_cntr
       
       if(!any(lower_elv)){
+        #vel_cells[[i]] <- 0
         break # stop if no lower elevations
       }
       
@@ -264,7 +269,10 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       beta_ngh <-  atan( (elv_cntr - elv_ngh)  / cell_dist) * 180/pi
       
       if(anyNA(beta_ngh)){
+        #vel_cells[[i]] <- 0
         break # stop approaching NA value in DEM raster
+        #^ can comment out if want to allow random walk with some NA values in
+        # neighbor cells
       }
       
       # start by giving equal weighting factors (f) to each neighbor cell
@@ -288,12 +296,12 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       
       # determine probability (prob) for each neighbor cell to be randomly selected
       fj <- f * tan(beta_ngh*pi/180)
-      prob <-  f*tan(beta_ngh*pi/180) / sum(fj)
-      prob <- prob/sum(prob)
+      prob <-  f*tan(beta_ngh*pi/180) / sum(fj, na.rm = TRUE)
+      prob <- prob/sum(prob, na.rm = TRUE)
       
       # determine how close the slope to the steepest neighbor is to the 
       # slope threshold
-      gamma_max <- max(gamma_i)
+      gamma_max <- max(gamma_i, na.rm = TRUE)
       
       if(gamma_max > 1){
         # if gamma > select only steepest neighbor - can have ties
@@ -376,50 +384,71 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
     # }
     
     sim_paths[[k]] <- matrix(unlist(path_cells), ncol = 2, byrow = TRUE)
-    sim_velocity[[k]] <- round(unlist(vel_cells),3)
+    
+    if(length(vel_cells)>0){
+      # to deal with breaks with no velocity
+      sim_velocity[[k]] <- round(unlist(vel_cells),3)
+    }
+    
     
   }
   
   # Remove walks that didn't go anywhere 
   
   sim_paths <- Filter(function(x) !all(is.na(x)), sim_paths)
-  sim_velocity <- Filter(function(x) !all(is.na(x)), sim_velocity)
   
-  all_indices <- unlist(lapply(sim_paths, function(path) {
-    terra::cellFromRowCol(dem, path[, 1], path[, 2])
-  }))
-  
-  vel_data <- data.frame(cell = all_indices, velocity = unlist(sim_velocity))
-  
-  # Aggregate to find the max velocity per cell
-  max_velocity_by_cell <- aggregate(velocity ~ cell, data = vel_data, FUN = max)
-  
-  
-  # Count occurrences of each cell index [freq of each cell traversed by cell size]
-  cell_counts <- table(all_indices) 
-  
-  if(source_connect == TRUE){
-    
-    prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = connect_feature, trials = walks)
-    
+  if(length(sim_paths)== 0){
+    # if no paths found...
     walks_res <- list(
       start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),
-      cell_trav_freq = cell_counts,
-      cell_max_vel = max_velocity_by_cell$velocity,
-      prob_connect = prob_connect
+      cell_trav_freq = NA,
+      cell_max_vel = NA,
+      prob_connect = NA
     )
-    
     
   } else {
     
-    walks_res <- list(
-      start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),
-      cell_trav_freq = cell_counts,
-      cell_max_vel = max_velocity_by_cell$velocity,
-      prob_connect = NULL
-    )
+    sim_velocity <- Filter(function(x) !all(is.na(x)), sim_velocity)
+    
+    all_indices <- unlist(lapply(sim_paths, function(path) {
+      terra::cellFromRowCol(dem, path[, 1], path[, 2])
+    }))
+    
+    vel_data <- data.frame(cell = all_indices, velocity = unlist(sim_velocity))
+    
+    # Aggregate to find the max velocity per cell
+    max_velocity_by_cell <- aggregate(velocity ~ cell, data = vel_data, FUN = max)
+    
+    
+    # Count occurrences of each cell index [freq of each cell traversed by cell size]
+    cell_counts <- table(all_indices) 
+    
+    if(source_connect == TRUE){
+      
+      prob_connect <- sourceConnect(sim_paths = sim_paths, feature_mask = connect_feature, trials = walks)
+      
+      walks_res <- list(
+        start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),
+        cell_trav_freq = cell_counts,
+        cell_max_vel = max_velocity_by_cell$velocity,
+        prob_connect = prob_connect
+      )
+      
+      
+    } else {
+      
+      walks_res <- list(
+        start_cell =  terra::cellFromRowCol(dem, rowcol[1], rowcol[2]),
+        cell_trav_freq = cell_counts,
+        cell_max_vel = max_velocity_by_cell$velocity,
+        prob_connect = NULL
+      )
+      
+    }
     
   }
+  
+
   
   return(walks_res)
   

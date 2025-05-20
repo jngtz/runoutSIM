@@ -2,6 +2,7 @@
 
 export(adjCells)
 export(adjRowCol)
+export(cdfProb)
 export(connToRaster)
 export(euclideanDistance)
 export(leafmap)
