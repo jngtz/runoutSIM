@@ -239,7 +239,8 @@ global_run <- mbo(
 
 end_time <- Sys.time()
 run_time <- end_time - start_time
-run_time
+run_time #2.25 hours
+
 ## Summarize parameter optimization ############################################
 
 cat("Best global parameters:\n")
@@ -368,22 +369,13 @@ for(i in 1:nrow(source_xy)){
 }
 
 
-ncores <- parallel::detectCores() - 3
-cl     <- makeCluster(ncores)
-registerDoParallel(cl)
+library(parallel)
+# Define number of cores to use
+n_cores <- detectCores() -2
 
-# Make sure each worker (core) has access to the data and functions
-clusterExport(cl, varlist = c("packed_dem", "global_run"))
+dem_terra <- terra::rast('C:\\sda\\GitProjects\\runoutSim\\Dev\\Data\\elev_nosinks.tif')
 
-# Load required packages on each worker
-clusterEvalQ(cl, {
-  library(raster); library(terra)
-  library(sp);     library(sf)
-  library(ROCR);   library(Rsagacmd)
-  library(runoutSim); library(runoptGPP)
-  TRUE
-})
-
+packed_dem <- wrap(dem_terra)
 
 # Create parallel loop
 cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
@@ -393,7 +385,7 @@ cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
 #                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
 #                              "feature_mask"))
 
-
+clusterExport(cl, varlist = c("packed_dem", "global_run"))
 
 # Load required packages to each cluster
 clusterEvalQ(cl, {
@@ -402,12 +394,21 @@ clusterEvalQ(cl, {
 })
 
 
+# Load objects and 'custom' functions to each cluster
+# clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
+#                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
+#                              "feature_mask"))
+
+
+
+
+
 multi_sim_paths <- parLapply(cl, source_l, function(x) {
   
   runoutSim(dem = unwrap(packed_dem), xy = x, 
-            mu = global_run$x$md, 
-            md = global_run$x$mu, 
-            slp_thresh = global_run$x$per, 
+            mu = global_run$x$mu, 
+            md = global_run$x$md, 
+            slp_thresh = global_run$x$slp, 
             exp_div = global_run$x$ex, 
             per_fct = global_run$x$per, 
             walks = 1000)
@@ -417,10 +418,16 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
 
 stopCluster(cl) 
 
-trav_freq <- walksToRaster(multi_sim_paths, dem)
-trav_prob <- rasterCdf(trav_freq)
+trav_freq <- walksToRaster(multi_sim_paths, dem_terra)
+trav_prob <- runoutSim::rasterCdf(trav_freq)
 
+trav_vel <- velocityToRaster(multi_sim_paths, dem_terra)
 
+leafmap(runout_polygons) %>%
+  leafmap(trav_freq) %>%
+  leafmap(trav_prob) %>%
+  leafmap(trav_vel, palette = 'plasma') %>%
+  leafmap(source_points, color = "red") 
 
 ########################################################
 
