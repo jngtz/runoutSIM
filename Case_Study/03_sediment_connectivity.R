@@ -84,7 +84,7 @@ source_xy <- xyFromCell(source_areas, source_cells)
 
 # Let's do a random sub-sample for testing
 #test_sample_index <- sample(1:nrow(source_xy), size = 1000)
-source_xy <- source_xy[1:100,]
+#source_xy <- source_xy[1:100,]
 
 # Create a list of matricies for input to pcmRW
 source_l <- makeSourceList(source_xy)
@@ -101,7 +101,7 @@ packed_dem <- wrap(dem)
 
 n_cores <- detectCores() -2
 cl <- makeCluster(n_cores) # Open clusters
-clusterExport(cl, varlist = c("packed_dem", "feature_mask"))
+clusterExport(cl, varlist = c("global_run", "packed_dem", "feature_mask"))
 
 # Load required packages to each cluster
 clusterEvalQ(cl, {
@@ -111,19 +111,19 @@ clusterEvalQ(cl, {
 
 print(start_time <- Sys.time())
 
-multi_sim_paths <- parLapply(cl, source_l[1:5], function(x) {
+multi_sim_paths <- parLapply(cl, source_l, function(x) {
   
   local_dem <- terra::unwrap(packed_dem)
   
   runoutSim(dem = local_dem, xy = x, 
-            mu = 0.14, 
-            md = 40, 
-            slp_thresh = 30, 
-            exp_div = 2, 
-            per_fct = 1.5, 
+            mu = global_run$x$mu, 
+            md = global_run$x$md, 
+            slp_thresh = global_run$x$slp, 
+            exp_div = global_run$x$ex, 
+            per_fct = global_run$x$per, 
             walks = 1000,
             connect_feature = feature_mask,
-            source_connect = FALSE)
+            source_connect = TRUE)
 })
 print(end_time <- Sys.time())
 print(run_time <- end_time - start_time)
