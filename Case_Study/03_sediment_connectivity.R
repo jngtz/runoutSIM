@@ -87,10 +87,8 @@ source_xy <- xyFromCell(source_areas, source_cells)
 source_xy <- source_xy[1:100,]
 
 # Create a list of matricies for input to pcmRW
-source_l <- list()
-for(i in 1:nrow(source_xy)){
-  source_l[[i]] <- matrix(source_xy[i,], ncol=2)
-}
+source_l <- makeSourceList(source_xy)
+
 
 
 library(parallel)

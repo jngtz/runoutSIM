@@ -455,3 +455,11 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
 }
 
 
+
+
+
+makeSourceList <- function(source_xy)
+{
+  lapply(seq_len(nrow(source_xy)), function(i) matrix(source_xy[i, ], ncol = 2))
+}
+
