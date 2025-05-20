@@ -1,8 +1,6 @@
 # Development (Dev) environment for optimizing random walk runout simulations
 library(runoutSim)
 
-# update runoptGPP!! with dev improvements...
-
 source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
 source("Dev/R/runoptGPP_Dev/pcm_performance.R")
 source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
@@ -23,6 +21,13 @@ source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
 # New strategy
 # - 1st estimate runout distance PCM (quicker)
 # - 2nd estimate runout path (shorter runout will help reduce processing times.)
+
+
+# If having bounding box length issue ... adjust pcmPerformance to also calculate
+# length as the distance from the highest elevation point (source point)
+# to the distance of the lowest elevation points of the runout.
+
+# OR calculate D8 distance, the distance along the steepest path
 
 
 # Optimizing an individual runout path simulation ##############################
@@ -55,25 +60,32 @@ leafmap(runout_polygons) %>% leafmap(source_points, col = "red")
 
 # 
 
-library(mlrMBO)
-library(mlr)
-library(DiceKriging)
-library(ParamHelpers)
-library(lhs)
+#library(mlrMBO) # 
+#library(mlr)
+#library(DiceKriging) # used for our proxy/surrogate model for BO
+
+#library(lhs)
+
+
+## Set-up working environment to allow for parallel processing #################
 library(doParallel)
 library(foreach)
+library(ParamHelpers)
+library(lhs)
+library(mlr)
+library(DiceKriging)
+library(mlrMBO)
 
-Sys.time()
-# number of cores for the inner foreach
+# Define number of cores 
 ncores <- parallel::detectCores() - 3
 cl     <- makeCluster(ncores)
 registerDoParallel(cl)
 
-# make sure each worker has access to your data + function
+# Make sure each worker (core) has access to the data and functions
 clusterExport(cl, c("dem", "runout_polygons", "source_points", "pcmPerformance",
                     "runoutSim"))
 
-# load required packages on each worker
+# Load required packages on each worker
 clusterEvalQ(cl, {
   library(raster); library(terra)
   library(sp);     library(sf)
@@ -82,74 +94,115 @@ clusterEvalQ(cl, {
   TRUE
 })
 
-# ────────────────────────────────────────────────────────────────────────────
-# 2) Parameter space, surrogate & MBO control
-# ────────────────────────────────────────────────────────────────────────────
+## Set-up parameter space, surrogate model and acquisition function ############
+
+
+# Define parameters' ranges to explore in optimization. These have been set to
+# approximate parameter ranges by Wichmann (2017 in NHESS, Table 3).
+
 ps <- makeParamSet(
-  makeNumericParam("slp", lower = 20, upper = 50),
-  makeNumericParam("ex",  lower = 1,  upper = 3),
+  makeNumericParam("slp", lower = 20, upper = 40),
+  makeNumericParam("ex",  lower = 1.3,  upper = 3),
   makeNumericParam("per", lower = 1.5, upper = 2),
-  makeNumericParam("mu",  lower = 0.01, upper = 0.6),
-  makeNumericParam("md",  lower = 20, upper = 50)
+  makeNumericParam("mu",  lower = 0.04, upper = 0.8),
+  makeNumericParam("md",  lower = 20, upper = 150)
 )
 
+# Create a learner object / define the surrogate model for optimization. In this
+# case we are using kriging regression from the DiceKriging package.
+
+
 lrn  <- makeLearner("regr.km", predict.type = "se")
+
+# Create a control object to configure the behaviour of the Bayesian optimization
+# process
+
+
 ctrl <- makeMBOControl()
+
+# Set the termination criteria (e.g. run for 30 iterations)
 ctrl <- setMBOControlTermination(ctrl, iters = 30)
+
+# Set the acquisition function (infill criteria). This determines where to sample
+# next (in parameter space) based on the surrogate model predictions.
+# makeBBOInfillCritEI() picks points that maximize the expected improvement (EI) 
+# and balances exploration (trying new spaces) and exploitation (refining the 
+# known good areas)
+
 ctrl <- setMBOControlInfill(ctrl, crit = makeMBOInfillCritEI())
 
-# ────────────────────────────────────────────────────────────────────────────
-# 3) Global objective function
-# ────────────────────────────────────────────────────────────────────────────
+## Define a global (multi) objective function ##################################
+
+# Here we are creating an objective function that finds optimal parameters for
+# regional runout modelling. I.e. the best set of optimal parameters to reduce
+# runout simulation error for the entire runout sample.
+
+#library(smoof)
+
 obj.fun <- makeSingleObjectiveFunction(
   name = "Global Runout Optimization",
   fn   = function(x) {
     x <- as.list(x)
     
-    # inner parallel loop: evaluate pcmPerformance on every slide
+    # We use an inner for loop (parallelized) to evaluate performance on 
+    # every slide when sampling for optimization function
+    
     results_df <- foreach(
       i = seq_len(nrow(runout_polygons)),
       .combine = rbind
     ) %dopar% {
       
+      # runoptGPP::pcmPerformance function is used to determine error:
+      # area under the roc, and runout length (bounding box method)
+      # for each runout sample simulation
+      
       out <- tryCatch({
+        
         pcmPerformance(
           dem            = dem,
           slide_plys     = runout_polygons,
           slide_src      = source_points,
           slide_id       = i,
-          rw_slp         = x$slp,
+          rw_slp         = x$slp, # x will be pulled from our ps object
           rw_ex          = x$ex,
           rw_per         = x$per,
           pcm_mu         = x$mu,
-          pcm_md         = 40,
+          pcm_md         = x$md,
           gpp_iter       = 1000,
-          buffer_ext     = 500,
+          buffer_ext     = NULL,
           buffer_source  = 20,
           plot_eval      = FALSE,
           return_features= FALSE
         )
+        
       }, error = function(e) {
         message("Slide ", i, " failed: ", e$message)
         return(NULL)
       })
       
-      if (is.null(out)) return(data.frame(
-        id = i, roc = NA, len_err = NA, len_rerr = NA # could treat these a no run possible? e.g. roc  = 0, len_err = length of polygon, len_rerr = 1
-      )) else {
+      if (is.null(out)){
+        
         return(data.frame(
-          id      = i,
+          id = i, 
+          roc = NA, 
+          len_err = NA, 
+          len_rerr = NA)) # could treat these a no run possible? e.g. roc  = 0, len_err = length of polygon, len_rerr = 1
+        
+      } else {
+        
+        return(data.frame(
+          id      = i, # row id of runout sample
           roc     = out$roc,
           len_err = out$length.error,
           len_rerr = out$ length.relerr,
-          stringsAsFactors = FALSE
-        ))
+          stringsAsFactors = FALSE))
+        
       }
-      
       
     }
     
-    # We can improve this by having a training and testing error (e.g. cross validation)
+    # We can improve this by having a training and testing error (e.g. cross 
+    # validation)
     
     # remove NAs
     valid <- complete.cases(results_df)
@@ -164,14 +217,17 @@ obj.fun <- makeSingleObjectiveFunction(
   minimize = TRUE
 )
 
-# ────────────────────────────────────────────────────────────────────────────
-# 4) Initial design & run MBO
-# ────────────────────────────────────────────────────────────────────────────
+## Initialize and Run Bayesian Optimization ####################################
+
 design <- generateDesign(
-  n       = 5 * length(ps$pars),
-  par.set = ps,
-  fun     = lhs::maximinLHS
+  n       = 5 * length(ps$pars), # number of initial samples (5 x number of parameters)
+  par.set = ps, # parameter set
+  fun     = lhs::maximinLHS # latin hypercube sample (stratified sampling in parameter space)
 )
+
+# Run optimization
+
+start_time <- Sys.time()
 
 global_run <- mbo(
   fun      = obj.fun,
@@ -181,22 +237,27 @@ global_run <- mbo(
   show.info= TRUE
 )
 
-Sys.time()
-# ────────────────────────────────────────────────────────────────────────────
-# 5) Clean up & results
-# ────────────────────────────────────────────────────────────────────────────
-#stopCluster(cl)
+end_time <- Sys.time()
+run_time <- end_time - start_time
+run_time #2.25 hours
+
+## Summarize parameter optimization ############################################
 
 cat("Best global parameters:\n")
 print(global_run$x)
 cat("Global objective value:\n")
 print(global_run$y)
 
+
+# Save results
 setwd("C:\\sda\\Workspace\\sedconnect")
-save(global_run, file = "Global_MBO.Rd")
-# See results scores
+save(global_run, file = "Global_MBO_RunoutSim.Rd")
+(load("Global_MBO_RunoutSim.Rd"))
 
+# Check optimization if it was sufficient
+plot(global_run)
 
+# Retrieve overall performance
 
 results_df <- foreach(
   i = seq_len(nrow(runout_polygons))) %dopar% {
@@ -210,9 +271,9 @@ results_df <- foreach(
         rw_ex          = global_run$x$ex,
         rw_per         = global_run$x$per,
         pcm_mu         = global_run$x$mu,
-        pcm_md         = 40,
+        pcm_md         = global_run$x$md,,
         gpp_iter       = 1000,
-        buffer_ext     = 10000,
+        buffer_ext     = NULL,
         buffer_source  = 20,
         plot_eval      = FALSE,
         return_features= TRUE
@@ -224,57 +285,146 @@ results_df
 stopCluster(cl)
 
 
-
-# Validate
-
-library(ggplot2)
-
-# Performance over each iteration
-opt_path <- as.data.frame(global_run$opt.path)
-opt_path$iteration <- seq_len(nrow(opt_path))
-
-ggplot(opt_path, aes(x = iteration, y = y)) +
-  geom_line() +
-  geom_point() +
-  labs(title = "Objective Function Over Iterations",
-       x = "Iteration", y = "Objective Value (y)") +
-  theme_minimal()
-
 # Extract error
 runout_polygons$sim_roc <- sapply(results_df, function(x) x$roc)
 runout_polygons$sim_length_relerror <- sapply(results_df, function(x) x$length.relerr)
 runout_polygons$sim_length_error <- sapply(results_df, function(x) x$length.error)
 runout_polygons$sim_length <- runout_polygons$length + runout_polygons$sim_length_error 
 
+median(runout_polygons$sim_length_relerror)
+IQR(runout_polygons$sim_length_relerror)
+
+
+median(runout_polygons$sim_length_error)
+
+
+png(filename="hist_error_plots.png", res = 300, width = 7.5, height = 6,
+    units = "in", pointsize = 11)
+
+par(family = "Arial", mfrow = c(2,2), mar = c(4, 3, 0.5, 0.5),
+    mgp = c(2, 0.75, 0))
+
+hist(runout_polygons$sim_roc, breaks = 20,
+     main = "",
+     xlab = "Runout path AUROC")
+
+hist(runout_polygons$sim_length_relerror, breaks = 40,,
+     main = "",
+     xlab = "Runout length relative error")
+
+hist(runout_polygons$sim_length_error, breaks = 40,,
+     main = "",
+     xlab = "Runout length error (m)")
+
 plot(runout_polygons$sim_length, runout_polygons$length,
      xlab = "Simulated runout length (m)",
      ylab = "Observed runout length (m)", pch = 20)
 
+dev.off()
+
+
 
 # > change below... 
 
+# Map results ##################################################################
 
-# Extract all gpp.parea rasters
-raster_list <- lapply(results_df, function(x) rast(x$gpp.parea))
+# Get buffered grid cells used in model training
 
-# Step 1: Merge to find the full union extent
-target_ext    <- ext(dem)
+sp_runout_polygons <- as_Spatial(runout_polygons)
+sp_runout_polygons$rowid <- 1:nrow(sp_runout_polygons)
 
-# Step 2: Extend each raster to the same extent (fills gaps with NA)
-aligned_list <- lapply(raster_list, function(r) {
-  extend(r, target_ext)
+sp_source_points <- as_Spatial(source_points)
+
+mbo_source_xy <- list()
+mbo_source_grid <- list()
+for(i in 1:nrow(runout_polygons)){
+  
+  runout_single <- sp_runout_polygons[i,]
+  
+  sel_over_start_point  <- sp::over(sp_source_points, runout_single)
+  sel_start_point <- sp_source_points[!is.na(sel_over_start_point$rowid),]
+  
+  source_buffer <- sf::st_buffer(st_as_sf(sel_start_point), dist = 20)
+  source_grid <- raster::rasterize(source_buffer, dem, field=1 )
+  source_grid <- raster::mask(source_grid, runout_single )
+  
+  source_cells <- which(values(source_grid) == 1)
+  
+  # Extract the coordinates of these cells
+  mbo_source_xy[[i]] <- xyFromCell(source_grid, source_cells)
+  mbo_source_grid[[i]] <- rast(source_grid)
+}
+
+mbo_source_grid <- rast(mbo_source_grid)
+mbo_source_grid <- app(mbo_source_grid, fun = sum, na.rm = TRUE)
+# Find cells where the value is 1
+source_cells <- which(values(mbo_source_grid) == 1)
+
+# Extract the coordinates of these cells
+source_xy <- xyFromCell(dem, source_cells)
+
+source_l <- list()
+for(i in 1:nrow(source_xy)){
+  source_l[[i]] <- matrix(source_xy[i,], ncol=2)
+}
+
+
+library(parallel)
+# Define number of cores to use
+n_cores <- detectCores() -2
+
+dem_terra <- terra::rast('C:\\sda\\GitProjects\\runoutSim\\Dev\\Data\\elev_nosinks.tif')
+
+packed_dem <- wrap(dem_terra)
+
+# Create parallel loop
+cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
+
+# Load objects and 'custom' functions to each cluster
+# clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
+#                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
+#                              "feature_mask"))
+
+clusterExport(cl, varlist = c("packed_dem", "global_run"))
+
+# Load required packages to each cluster
+clusterEvalQ(cl, {
+  library(terra)
+  library(runoutSim)
 })
 
-# Step 3: Stack and sum
-aligned_stack <- rast(aligned_list)
 
-# Step 4: Add pixel values, ignoring NAs
-trav_freq <- app(aligned_stack, fun = sum, na.rm = TRUE)
+# Load objects and 'custom' functions to each cluster
+# clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
+#                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
+#                              "feature_mask"))
 
+
+
+
+
+multi_sim_paths <- parLapply(cl, source_l, function(x) {
+  
+  runoutSim(dem = unwrap(packed_dem), xy = x, 
+            mu = global_run$x$mu, 
+            md = global_run$x$md, 
+            slp_thresh = global_run$x$slp, 
+            exp_div = global_run$x$ex, 
+            per_fct = global_run$x$per, 
+            walks = 1000)
+})
+
+
+
+stopCluster(cl) 
+
+trav_freq <- walksToRaster(multi_sim_paths, dem_terra)
 trav_prob <- runoutSim::rasterCdf(trav_freq)
 
+trav_vel <- velocityToRaster(multi_sim_paths, dem_terra)
 
-leafmap(trav_prob) %>% leafmap(runout_polygons) %>% leafmap(source_points, color = "red")
-
-
-plot(global_run)
+leafmap(runout_polygons) %>%
+  leafmap(trav_freq) %>%
+  leafmap(trav_prob) %>%
+  leafmap(trav_vel, palette = 'plasma') %>%
+  leafmap(source_points, color = "red") 
