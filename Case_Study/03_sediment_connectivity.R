@@ -28,7 +28,7 @@ source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
 
 # Load river data used for connecivity analysis
 
-river_channel <- st_read("Dev/Data/river_channel.shp")
+river_channel <- st_read("Dev/Data/river_channel.shp") # may need to buffer to represent high flow conditions...
 stream_channels <- st_read("Dev/Data/river_rio_olivares.shp")
 
 bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
@@ -126,25 +126,25 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
             source_connect = TRUE)
 })
 print(end_time <- Sys.time())
-print(run_time <- end_time - start_time)
+print(run_time <- end_time - start_time) # 18.3 hours for 656,853 source cells
 
 
 
 save(multi_sim_paths, file = "runoutSim_wConnectFeature.Rd")
 stopCluster(cl) # Close clusters
 
+conn <- connToRaster(multi_sim_paths, dem)
+paths <- walksToRaster(multi_sim_paths, method = "cdf_prob", dem)
+vel <- velocityToRaster(multi_sim_paths, dem)
+rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
 
-for(i in 1:10){
-  print(i)
-  local_dem <- terra::unwrap(packed_dem)
-  
-  runoutSim(dem = local_dem, xy = source_l[[i]], 
-            mu = 0.14, 
-            md = 40, 
-            slp_thresh = 30, 
-            exp_div = 2, 
-            per_fct = 1.5, 
-            walks = 1000,
-            connect_feature = feature_mask,
-            source_connect = FALSE)
-}
+
+src_pred <- rast("C:\\sda\\GitProjects\\runoutSim\\Data\\src_pred.tif")
+src_pred <- mask(src_pred, source_areas)
+wgt_conn <- conn * src_pred
+
+sum(!is.na(values(src_pred))) / length(source_l)
+
+leafmap(conn) %>% 
+  leafmap(drainage_network, fill_color = "lightblue") %>%
+  leafmap(rel_paths)
