@@ -160,14 +160,17 @@ connToRaster <- function(x, dem){
 
 velocityToRaster <- function(x, dem, method = "max"){
   
-  #remove any with NA cell traversed
-  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
+ 
+ 
   
   r <- terra::rast(dem)
   terra::values(r) <- NA
   
   if(!(is.list(x) && !is.null(names(x)))){
     # for multiple walks from difference source points
+    
+    #remove any with NA cell traversed
+    x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
     cell_velocities <- sapply(x, function(x) x$cell_max_vel)
     cell_indicies <- sapply(x, function(x) as.numeric(names(x$cell_trav_freq)))
     
