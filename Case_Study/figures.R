@@ -14,6 +14,7 @@ slope <- terrain(dem, "slope", unit="radians")
 aspect <- terrain(dem, "aspect", unit="radians")
 hill <- shade(slope, aspect, 40, 270)
 
+bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
 # Load runout source points and polygons
 source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
 runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
@@ -68,6 +69,11 @@ hill_crop <- crop(hill, trav_ecdf)
 plot(trav_ecdf, legend = T, axes = F)
 plot(source_point, pch = 19, col = "black", add = T)
 
+run_vel <- velocityToRaster(sim_paths, dem)
+run_vel <- crop(run_vel, ext(runout_polygon)+300)
+
+plot(run_vel, legend = T, axes = F)
+plot(source_point, pch = 19, col = "black", add = T)
 
 
 library(terra)
@@ -78,10 +84,12 @@ library(patchwork)
 
 # Convert rasters to data frames
 df_freq <- as.data.frame(paths_raster, xy = TRUE, na.rm = TRUE)
-names(df_prob)[3] <- "freq"
+names(df_freq)[3] <- "freq"
 
 df_ecdf <- as.data.frame(trav_ecdf, xy = TRUE, na.rm = TRUE)
 names(df_ecdf)[3] <- "ecdf"
+
+df_vel <- as.data.frame(run_vel, xy = TRUE, na.rm = TRUE)
 
 # Convert source point to data frame
 source_df <- as.data.frame(source_point, xy = TRUE)
@@ -89,36 +97,145 @@ source_df <- as.data.frame(source_point, xy = TRUE)
 # Plot traversal probability
 m.freq <- ggplot(df_freq, aes(x = x, y = y, fill = freq)) +
   geom_raster() +
-  scale_fill_viridis(name = "Traverse\nFrequency", na.value = "transparent") +
+  scale_fill_viridis(name = "Traverse\nFrequency", na.value = "transparent",
+                     direction = 1) +
   coord_equal() +
   theme_void() +
   theme(
-    legend.title = element_text(size = 10),
-    legend.text = element_text(size = 8),
-    legend.key.width = unit(0.8, "cm"),
+    legend.title = element_text(size = 7),
+    legend.text = element_text(size = 6),
+    legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(0.3, "cm"),
     legend.position = "bottom", legend.direction = "horizontal"
   ) +
   xlab("") + ylab("") +
-  coord_fixed() 
+  coord_sf() +
+  annotation_scale(aes(style = "ticks", location = "tr"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
 
 # Plot ECDF
 m.ecdf <- ggplot(df_ecdf, aes(x = x, y = y, fill = ecdf)) +
     geom_raster() +
-    scale_fill_viridis(name = "Traverse\nProbability\n(ECDF)", na.value = "transparent") +
+    scale_fill_viridis(name = "Traverse\nProbability\n(ECDF)", 
+                       na.value = "transparent",
+                     direction = 1) +
     coord_equal() +
     theme_void() +
   theme(
-    legend.title = element_text(size = 10),
-    legend.text = element_text(size = 8),
-    legend.key.width = unit(0.8, "cm"),
+    legend.title = element_text(size = 7),
+    legend.text = element_text(size = 6),
+    legend.key.width = unit(0.5, "cm"),
     legend.key.height = unit(0.3, "cm"),
     legend.position = "bottom", legend.direction = "horizontal"
   ) +
   xlab("") + ylab("") +
-  coord_fixed() 
+  coord_sf() + 
+  annotation_scale(aes(style = "ticks", location = "tr"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
+
+m.vel <- ggplot(df_vel, aes(x = x, y = y, fill = max_velocity_ms)) +
+  geom_raster() +
+  scale_fill_viridis(name = "Maximum\nVelocity\n(m/s)", 
+                     option = "plasma", 
+                     direction =  1, 
+                     na.value = "transparent") +
+  coord_equal() +
+  theme_void() +
+  theme(
+    legend.title = element_text(size = 7),
+    legend.text = element_text(size = 6),
+    legend.key.width = unit(0.5, "cm"),
+    legend.key.height = unit(0.3, "cm"),
+    legend.position = "bottom", legend.direction = "horizontal"
+  ) +
+  xlab("") + ylab("") +
+  coord_sf() + 
+  annotation_scale(aes(style = "ticks", location = "tr"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
 
   
 m.trav_probs <- m.freq + m.ecdf
 
+m.output_single <- m.freq + m.ecdf + m.vel
+
+
 ggsave("Case_Study/Figures/traversal_maps.png", plot = m.trav_probs, width = 170, height = 85, units = "mm", dpi = 300)
+ggsave("Case_Study/Figures/eg_single_maps.png", plot = m.output_single, width = 170, height = 85, units = "mm", dpi = 300)
+
+
+# Connectivity and runout map ##################################################
+
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeature.Rd"))
+library(ggnewscale) # Allow multiple scales in a map
+library(ggspatial) # for scale bar
+
+conn <- connToRaster(multi_sim_paths, dem)
+vel <- velocityToRaster(multi_sim_paths, dem)
+rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
+
+
+# Plot conn
+
+df_hill <- as.data.frame(hill, xy = TRUE, na.rm = TRUE)
+df_conn <- as.data.frame(conn, xy = TRUE, na.rm = TRUE)
+df_path <- as.data.frame(rel_paths, xy = TRUE, na.rm = TRUE)
+
+
+m.conn <- ggplot() +
+  geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
+            show.legend = FALSE) +
+  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  new_scale("fill") +
+  geom_tile(data = df_conn, aes(x = x, y = y, fill = connectivity_prob)) +
+  scale_fill_viridis(name = "Connectivity\nProbability\n", 
+                     option = "viridis", direction = -1,
+                     alpha = 0.7, na.value = "transparent") +
+  geom_sf(data = drainage_network, 
+          fill = alpha("#99d2ff", 0.5), 
+          color = alpha("#99d2ff", 0.5), size = 0.8) +
+  #geom_sf(data = bnd_catchment, fill = NA, color = "#566573" , size = 2)+
+  xlab("") +
+  ylab("") +
+  coord_sf() +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 9), 
+        axis.title = element_text(size = 9),
+        axis.text = element_text(size = 6), 
+        axis.text.y = element_text(angle = 90)) +
+  annotation_scale(aes(style = "ticks", location = "br"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
+
+
+m.paths <- ggplot() +
+  geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
+              show.legend = FALSE) +
+  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  new_scale("fill") +
+  geom_tile(data = df_path, aes(x = x, y = y, fill = freq)) +
+  scale_fill_viridis(name = "Traverse\nFrequency\n(Quantiles)", alpha = 0.7, 
+                     direction = -1, na.value = "transparent") +
+  geom_sf(data = drainage_network, 
+          fill = alpha("#99d2ff", 0.5), 
+          color = alpha("#99d2ff", 0.5), size = 0.8) +
+  #geom_sf(data = bnd_catchment, fill = NA, color = "#566573" , size = 2)+
+  xlab("") +
+  ylab("") +
+  coord_sf() +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 9), 
+        axis.title = element_text(size = 9),
+        axis.text = element_text(size = 6), 
+        axis.text.y = element_text(angle = 90)) +
+  annotation_scale(aes(style = "ticks", location = "br"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
+
+
+m.paths_conn <- m.paths + m.conn
+
+ggsave("Case_Study/Figures/connectivity_maps.png", plot = m.paths_conn, width = 170, height = 120, units = "mm", dpi = 300)
