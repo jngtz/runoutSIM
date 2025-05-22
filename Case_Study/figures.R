@@ -7,6 +7,9 @@ library(sf)
 
 # Load digital elevation model (DEM)
 dem <- rast("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+
+src_pred <- rast("Data/src_pred_mask.tif")
+src_area <- rast("Data/auto_classified_source_areas.tif")
 # e.g. DMMF::SinkFill(raster::raster()) (our random walk is not an infilling algorithm)
 
 # Hillshade for visualization 
@@ -179,7 +182,60 @@ rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
 df_hill <- as.data.frame(hill, xy = TRUE, na.rm = TRUE)
 df_conn <- as.data.frame(conn, xy = TRUE, na.rm = TRUE)
 df_path <- as.data.frame(rel_paths, xy = TRUE, na.rm = TRUE)
+df_srcprob <- as.data.frame(src_pred, xy = TRUE, na.rm = TRUE)
+df_srcarea <- as.data.frame(src_area, xy = TRUE, na.rm = TRUE)
 
+m.srcprob <- ggplot() +
+  geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
+            show.legend = FALSE) +
+  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  new_scale("fill") +
+  geom_tile(data = df_srcprob, aes(x = x, y = y, fill = lyr1)) +
+  scale_fill_viridis(name = "Source\nProbability\n", 
+                     option = "viridis", direction = -1,
+                     alpha = 0.7, na.value = "transparent") +
+  geom_sf(data = drainage_network, 
+          fill = alpha("#99d2ff", 0.5), 
+          color = alpha("#99d2ff", 0.5), size = 0.8) +
+  #geom_sf(data = bnd_catchment, fill = NA, color = "#566573" , size = 2)+
+  xlab("") +
+  ylab("") +
+  coord_sf() +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 9), 
+        axis.title = element_text(size = 9),
+        axis.text = element_text(size = 6), 
+        axis.text.y = element_text(angle = 90)) +
+  annotation_scale(aes(style = "ticks", location = "br"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
+
+m.srcarea <- ggplot() +
+  geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
+            show.legend = FALSE) +
+  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  new_scale("fill") +
+  geom_tile(data = df_srcarea, aes(x = x, y = y, fill = ""), alpha = 0.7) +
+  scale_fill_manual(name = "Classified\nSource Area", values = "#e74c3c") +
+  geom_sf(data = drainage_network, 
+          fill = alpha("#99d2ff", 0.5), 
+          color = alpha("#99d2ff", 0.5), size = 0.8) +
+  #geom_sf(data = bnd_catchment, fill = NA, color = "#566573" , size = 2)+
+  xlab("") +
+  ylab("") +
+  coord_sf() +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 9), 
+        axis.title = element_text(size = 9),
+        axis.text = element_text(size = 6), 
+        axis.text.y = element_text(angle = 90)) +
+  annotation_scale(aes(style = "ticks", location = "br"), text_cex = 0.5,
+                   bar_cols = "black", line_width = 0.7) 
 
 m.conn <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
@@ -239,3 +295,12 @@ m.paths <- ggplot() +
 m.paths_conn <- m.paths + m.conn
 
 ggsave("Case_Study/Figures/connectivity_maps.png", plot = m.paths_conn, width = 170, height = 120, units = "mm", dpi = 300)
+
+m.src <- m.srcprob + m.srcarea
+ggsave("Case_Study/Figures/src_maps.png", plot = m.src, width = 170, height = 120, units = "mm", dpi = 300)
+
+
+m.reg_results <- (m.srcprob + m.srcarea) / (m.paths + m.conn)
+
+ggsave("Case_Study/Figures/regional_maps.png", plot = m.reg_results, width = 170, height = 240, units = "mm", dpi = 300)
+
