@@ -7,9 +7,10 @@ library(sf)
 # Load data ####################################################################
 
 # Load digital elevation model (DEM)
-dem <- rast("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+dem <- rast("Dev/Data/elev_fillsinks_WangLiu.tif") # use sink filled DEM to remove pits and flats 
+
 # e.g. DMMF::SinkFill(raster::raster()) (our random walk is not an infilling algorithm)
-source_areas <- rast("Data/auto_classified_source_areas.tif")
+source_areas<- rast("Dev/Data/classified_w7filter_source_areas.tif") # from "02_source_area_prediction.R"
 # Hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
 aspect <- terrain(dem, "aspect", unit="radians")
@@ -72,7 +73,7 @@ leafmap(bnd_catchment,
 
 feature_mask <- makeConnFeature(drainage_network, dem)
 
-source_areas<- rast("Data/auto_classified_source_areas.tif") # from "02_source_area_prediction.R"
+
 source_areas <- crop(source_areas, dem)
 sum(values(source_areas), na.rm = TRUE)
 
@@ -82,26 +83,42 @@ source_cells <- which(values(source_areas) == 1)
 # Extract the coordinates of these cells
 source_xy <- xyFromCell(source_areas, source_cells)
 
-# Let's do a random sub-sample for testing
-#test_sample_index <- sample(1:nrow(source_xy), size = 1000)
-#source_xy <- source_xy[1:100,]
-
-# Create a list of matricies for input to pcmRW
+# Create a list of matrices for input to runoutSim
 source_l <- makeSourceList(source_xy)
-
+# 
+# dem = dem
+# xy = source_l[[1]] 
+# mu = 0.08
+# md = 40
+# slp_thresh = 40
+# exp_div = 3
+# per_fct = 1.9
+# walks = 1000
+# connect_feature = feature_mask
+# source_connect = TRUE
+# 
+# 
+# test = runoutSim(dem = dem, xy = source_l[[1]], 
+#           mu = 0.08, 
+#           md = 40, 
+#           slp_thresh = 40, 
+#           exp_div = 3, 
+#           per_fct = 1.9, 
+#           walks = 1000,
+#           connect_feature = feature_mask,
+#           source_connect = TRUE)
 
 
 library(parallel)
 
 setwd("C:\\sda\\Workspace\\sedconnect")
 
-(load("Global_MBO_RunoutSim.Rd"))
 
 packed_dem <- wrap(dem)
 
 n_cores <- detectCores() -2
 cl <- makeCluster(n_cores) # Open clusters
-clusterExport(cl, varlist = c("global_run", "packed_dem", "feature_mask"))
+clusterExport(cl, varlist = c( "packed_dem", "feature_mask"))
 
 # Load required packages to each cluster
 clusterEvalQ(cl, {
@@ -116,11 +133,11 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
   local_dem <- terra::unwrap(packed_dem)
   
   runoutSim(dem = local_dem, xy = x, 
-            mu = global_run$x$mu, 
-            md = global_run$x$md, 
-            slp_thresh = global_run$x$slp, 
-            exp_div = global_run$x$ex, 
-            per_fct = global_run$x$per, 
+            mu = 0.08, 
+            md = 40, 
+            slp_thresh = 40, 
+            exp_div = 3, 
+            per_fct = 1.9, 
             walks = 1000,
             connect_feature = feature_mask,
             source_connect = TRUE)
@@ -130,8 +147,10 @@ print(run_time <- end_time - start_time) # 18.3 hours for 656,853 source cells
 
 
 
-save(multi_sim_paths, file = "runoutSim_wConnectFeature.Rd")
+save(multi_sim_paths, file = "runoutSim_wConnectFeatures.Rd")
 stopCluster(cl) # Close clusters
+
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeature.Rd"))
 
 conn <- connToRaster(multi_sim_paths, dem)
 paths <- walksToRaster(multi_sim_paths, method = "cdf_prob", dem)
@@ -147,4 +166,4 @@ sum(!is.na(values(src_pred))) / length(source_l)
 
 leafmap(conn) %>% 
   leafmap(drainage_network, fill_color = "lightblue") %>%
-  leafmap(rel_paths)
+  leafmap(rel_paths,  palette = viridis::viridis(10, direction = -1))

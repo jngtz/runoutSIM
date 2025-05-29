@@ -77,7 +77,7 @@ pcmGridsearch <- function(dem,
                                  buffer_source = buffer_source,
                                  gpp_iter = gpp_iter,
                                  predict_threshold = predict_threshold,
-                                 plot_eval = FALSE,
+                                 plot_eval = plot_eval,
                                  saga_lib = saga_lib)
 
       roc_result[k, i] <- result$roc

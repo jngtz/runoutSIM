@@ -1,15 +1,15 @@
 # Development (Dev) environment for optimizing random walk runout simulations
 library(runoutSim)
-
-source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/pcm_performance.R")
-source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_performance.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/raster_rescale.R")
-source("Dev/R/runoptGPP_Dev/runout_geometry.R")
-source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
+# 
+# source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
+# source("Dev/R/runoptGPP_Dev/pcm_performance.R")
+# source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_gridsearch.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_performance.R")
+# source("Dev/R/runoptGPP_Dev/randomwalk_spatial_cross_validation.R")
+# source("Dev/R/runoptGPP_Dev/raster_rescale.R")
+# source("Dev/R/runoptGPP_Dev/runout_geometry.R")
+# source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
 
 #library(runoutSim)
 # source("./Dev/R/pcm.R")
@@ -37,7 +37,8 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- raster("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+dem <- raster("Dev/Data/elev.tif")
+#dem <- raster("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
 
 # Load runout source points and polygons
 source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
@@ -82,7 +83,7 @@ cl     <- makeCluster(ncores)
 registerDoParallel(cl)
 
 # Make sure each worker (core) has access to the data and functions
-clusterExport(cl, c("dem", "runout_polygons", "source_points", "pcmPerformance",
+clusterExport(cl, c("dem", "runout_polygons", "source_points",
                     "runoutSim"))
 
 # Load required packages on each worker
@@ -104,8 +105,8 @@ ps <- makeParamSet(
   makeNumericParam("slp", lower = 20, upper = 40),
   makeNumericParam("ex",  lower = 1.3,  upper = 3),
   makeNumericParam("per", lower = 1.5, upper = 2),
-  makeNumericParam("mu",  lower = 0.04, upper = 0.8),
-  makeNumericParam("md",  lower = 20, upper = 150)
+  makeNumericParam("mu",  lower = 0.04, upper = 0.8)
+  #makeNumericParam("md",  lower = 20, upper = 150)
 )
 
 # Create a learner object / define the surrogate model for optimization. In this
@@ -167,10 +168,11 @@ obj.fun <- makeSingleObjectiveFunction(
           rw_ex          = x$ex,
           rw_per         = x$per,
           pcm_mu         = x$mu,
-          pcm_md         = x$md,
+          pcm_md         = 40,
           gpp_iter       = 1000,
           buffer_ext     = NULL,
           buffer_source  = 20,
+          predict_threshold = 0.5,
           plot_eval      = FALSE,
           return_features= FALSE
         )
@@ -219,6 +221,7 @@ obj.fun <- makeSingleObjectiveFunction(
 
 ## Initialize and Run Bayesian Optimization ####################################
 
+ 
 design <- generateDesign(
   n       = 5 * length(ps$pars), # number of initial samples (5 x number of parameters)
   par.set = ps, # parameter set
@@ -271,7 +274,8 @@ results_df <- foreach(
         rw_ex          = global_run$x$ex,
         rw_per         = global_run$x$per,
         pcm_mu         = global_run$x$mu,
-        pcm_md         = global_run$x$md,,
+        pcm_md         = 40,
+        predict_threshold = 0.5,
         gpp_iter       = 1000,
         buffer_ext     = NULL,
         buffer_source  = 20,
@@ -374,6 +378,8 @@ library(parallel)
 n_cores <- detectCores() -2
 
 dem_terra <- terra::rast('C:\\sda\\GitProjects\\runoutSim\\Dev\\Data\\elev_nosinks.tif')
+dem_terra <- terra::rast('C:\\sda\\GitProjects\\runoutSim\\Dev\\Data\\elev.tif')
+
 
 packed_dem <- wrap(dem_terra)
 
@@ -407,7 +413,7 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
   
   runoutSim(dem = unwrap(packed_dem), xy = x, 
             mu = global_run$x$mu, 
-            md = global_run$x$md, 
+            md = 40, 
             slp_thresh = global_run$x$slp, 
             exp_div = global_run$x$ex, 
             per_fct = global_run$x$per, 

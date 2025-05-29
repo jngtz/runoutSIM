@@ -16,7 +16,8 @@ library(sf)
 # Load data ####################################################################
 
 # Load digital elevation model (DEM)
-dem <- rast("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+dem <- rast("Dev/Data/elev_fillsinks_WangLiu.tif")# use sink filled DEM to remove pits and flats 
+dem <- rast("Dev/Data/elev.tif")
 # e.g. DMMF::SinkFill(raster::raster()) (our random walk is not an infilling algorithm)
 
 # Hillshade for visualization 
@@ -26,11 +27,14 @@ hill <- shade(slope, aspect, 40, 270)
 
 # Load runout source points and polygons
 source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
+source_points$run_id <- 1:nrow(source_points)
+
 runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
+runout_polygons$run_id <- 1:nrow(runout_polygons)
 # ^ Need to clean this up so make valid not needed
 
 # Select a single debris flow and source point for the example
-runout_polygon <- runout_polygons[10,]
+runout_polygon <- runout_polygons[50,]
 
 # Get corresponding source point
 source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
@@ -84,8 +88,8 @@ feature_mask <- makeConnFeature(drainage_network, dem)
 # Run PCM-Random Walk for Single Source Cell ###################################
 
 # Run for a single source point
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
-                      slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
+sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.49, md = 40, 
+                      slp_thresh = 40, exp_div = 3, per_fct = 1.9, walks = 1000,
                       source_connect = TRUE, connect_feature = feature_mask)
 
 # Convert paths to raster with cell transition frequencies
@@ -94,9 +98,9 @@ paths_raster <- walksToRaster(sim_paths, dem)
 # Plot results
 paths_raster <- crop(paths_raster, ext(runout_polygon)+1000)
 plot(paths_raster, legend = T)
-plot(st_geometry(drainage_network), add = T, border = "#5b86b9")
+#plot(st_geometry(drainage_network), add = T, border = "#5b86b9")
 plot(st_geometry(runout_polygon), add = T)
-plot(source_point, add = T)
+plot(st_geometry(source_point), add = T)
 
 
 # Run PCM-Random Walks for Multiple Cells ######################################
@@ -108,6 +112,13 @@ for(i in 1:nrow(source_points)){
 }
 
 # ^ Need to make a function to clean this up - creating a source object.
+for(i in 1:length(source_l)){
+  print(paste("source", i))
+  runoutSim(dem = dem, xy = source_l[[i]], mu = 0.08, md = 140, 
+            slp_thresh = 50, exp_div = 3.0, per_fct = 1.95, walks = 1000,
+            source_connect = TRUE, connect_feature = feature_mask)
+}
+
 
 # Use lapply to run for multiple source cells
 rw_l <- lapply(source_l, function(x) {

@@ -456,6 +456,27 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
 
 
 
+#' Create a list of xy coordinates from terra::xyFromCell coordinates
+#'
+#' @param source_xy A matrix with coordinate pairs (see `terra::xyFromCell`)
+
+#'
+#' @examples
+#' \dontrun{
+#' source_areas<- rast("Dev/Data/classified_w7filter_source_areas.tif")
+#' source_areas <- crop(source_areas, dem)
+#' sum(values(source_areas), na.rm = TRUE)
+#' 
+#' # Find cells where the value is 1
+#' source_cells <- which(values(source_areas) == 1)
+#' 
+# Extract the coordinates of these cells
+#' source_xy <- xyFromCell(source_areas, source_cells)
+#' 
+# Create a list of matrices for input to runoutSim
+#' source_l <- makeSourceList(source_xy)
+#' }
+#' @export
 
 
 makeSourceList <- function(source_xy)

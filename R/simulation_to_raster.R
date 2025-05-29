@@ -34,7 +34,8 @@ walksToRaster <- function(x, dem, method = "freq", weights = NULL){
     x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
     
     # for multiple walks from difference source points
-    trav_freq <- sapply(x, function(x) x$cell_trav_freq)
+    #trav_freq <- sapply(x, function(x) x$cell_trav_freq)
+    trav_freq <- lapply(x, function(x) x$cell_trav_freq)
     
     if(!is.null(weights)){
       

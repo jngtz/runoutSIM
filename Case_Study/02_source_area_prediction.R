@@ -5,30 +5,6 @@ library(sf)
 library(runoutSim)
 
 
-# Functions ##############################################################
-
-
-gMeanThreshold <- function(predict, response, plot_curve = FALSE) {
-  # automatically determine threshold value to classify source areas
-  #https://stackoverflow.com/questions/16347507/obtaining-threshold-values-from-a-roc-curve
-  perf <- ROCR::performance(ROCR::prediction(predict, response), "tpr", "fpr")
-  df <- data.frame(cut = perf@alpha.values[[1]], fpr = perf@x.values[[1]], tpr = perf@y.values[[1]])
-  
-  gmean <- sqrt(df$tpr * (1 - df$fpr))
-  opt_threshold <- df[which.max(gmean), "cut"]
-  
-  if(plot_curve){
-    
-    plot(df$fpr, df$tpr, type = "l", ylab = "True positive rate", xlab = "False postive rate")
-    points(df[which.max(gmean), "fpr"], df[which.max(gmean), "tpr"], pch = 19, col = "red")
-    
-  }
-  
-  return(opt_threshold)
-  
-}
-
-
 
 # Read data for modeling #################################################
 
@@ -55,6 +31,20 @@ leafmap(source_points, color = "red") %>% leafmap(runout_polygons) %>%
 runout_polygons <- as_Spatial(st_zm(runout_polygons))
 source_points <- as_Spatial(st_zm(source_points))
 river_channel <- as_Spatial(st_zm(river_channel))
+
+
+# Load river data used for connecivity analysis
+
+river_channel <- st_read("Dev/Data/river_channel.shp") # may need to buffer to represent high flow conditions...
+stream_channels <- st_read("Dev/Data/river_rio_olivares.shp")
+
+bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+# buffer stream channels
+buffer_stream <- st_buffer(stream_channels, dist = 30)
+
+# combine to one feature
+drainage_network <- st_sf(st_union(st_union(st_geometry(river_channel), st_geometry(buffer_stream), is_coverage = TRUE)))
+
 
 # Read raster using raster package
 dem <- rast("Dev/Data/elev_nosinks.tif")
@@ -243,9 +233,9 @@ pred.gam<- terra::predict(layers, model.gam, type = "response", progress = TRUE)
 maskpred.gam <- mask(pred.gam, vect(river_channel), inverse = TRUE)
 
 # export to a raster format
-writeRaster(maskpred.gam, "Data/src_pred_mask.tif", overwrite = TRUE)
+writeRaster(maskpred.gam, "Dev/Data/gam_src_pred_mask.tif", overwrite = TRUE)
 
-
+maskpred.gam <- rast("Dev/Data/gam_src_pred_mask.tif")
 # Plot prediction map ####################################################
 
 library(viridis) # for virdis colour palette
@@ -253,47 +243,37 @@ library(viridis) # for virdis colour palette
 leafmap(maskpred.gam, label = "Source area probability")
 
 
-# Automatically classifiy source areas ##########################################
+# Classification ##########################################
 
 src_class <- maskpred.gam
 
-d$pred <- as.numeric(predict(model.gam, type = "response", newdata = d))
-
-
-# Determine optimital prediction threshold to classify source areas ##############
-opt_threshold <- gMeanThreshold(d$pred, d$slide, plot_curve = TRUE)
-
-perf <- ROCR::performance(ROCR::prediction(d$pred, d$slide), "tpr", "fpr")
-df <- data.frame(cut = perf@alpha.values[[1]], fpr = perf@x.values[[1]], tpr = perf@y.values[[1]])
-
-gmean <- sqrt(df$tpr * (1 - df$fpr))
-opt_threshold <- df[which.max(gmean), "cut"]
-opt_threshold
-
-# Make figure of results
-par(mfrow = c(1,1))
-png(filename = "gmean_source_class_roc.png", res = 300, width = 3, height = 3,
-    units = "in", pointsize = 7)
-
-plot(df$fpr, df$tpr, type = "l", ylab = "True positive rate", xlab = "False postive rate")
-points(df[which.max(gmean), "fpr"], df[which.max(gmean), "tpr"], pch = 19, col = "red")
-
-dev.off()
-
-# Apply classification
-
-src_class[src_class >= opt_threshold] <- 1
-src_class[src_class < opt_threshold] <- 0
-src_class[src_class == 0] <- NA
+src_class[src_class >= 0.5] <- 1
+src_class[src_class < 0.5] <- 0
+src_class[is.na(src_class)] <- 0
 
 plot(src_class)
 
-writeRaster(src_class, filename = "Data/auto_classified_source_areas.tif",
+
+# Filter sparse points
+
+majority <- function(x) {
+  x <- x[!is.na(x)]  # Remove NAs
+  if (length(x) == 0) return(NA)  # Handle empty case
+  return(as.numeric(names(which.max(table(x)))))  # Most frequent value
+}
+
+x_filter <- focal(src_class, w=7, fun=majority, na.policy="all")
+plot(x_filter)
+
+leafmap(x_filter, palette = list(classes = c(0,1), colors = c("lightblue", "#e5207a"), labels = c("0", "1")))
+
+mx_filter <- mask(x_filter, dem)
+mx_filter[mx_filter == 0] <- NA
+
+leafmap(mx_filter, palette = list(classes = 1, colors = "#e5207a", labels = "Source area"))
+
+writeRaster(mx_filter, filename = "Dev/Data/classified_w7filter_source_areas.tif",
             overwrite = TRUE)
-
-
-leafmap(src_class, palette = list(classes = 1, colors = "#e5207a", labels = "Source area"))
-
 
 # Make figures ###############################################################
 

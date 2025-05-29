@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20250527</CreaDate><CreaTime>13292200</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files\arcgis\pro\Resources\ArcToolbox\toolboxes\Spatial Analyst Tools.tbx\FeaturePreservingSmoothing" Date="20250527" Time="132922">FeaturePreservingSmoothing elev.tif C:\sda\GitProjects\runoutSim\Dev\Data\elev_smooth.tif CELLS 3 15 3 "0.5 Meters" METER GPU_THEN_CPU</Process></lineage></DataProperties></Esri></metadata>
