@@ -150,9 +150,12 @@ print(run_time <- end_time - start_time) # 18.3 hours for 656,853 source cells
 save(multi_sim_paths, file = "runoutSim_wConnectFeatures.Rd")
 stopCluster(cl) # Close clusters
 
-(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeature.Rd"))
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures.Rd"))
 
 conn <- connToRaster(multi_sim_paths, dem)
+
+leafmap(conn)
+
 paths <- walksToRaster(multi_sim_paths, method = "cdf_prob", dem)
 vel <- velocityToRaster(multi_sim_paths, dem)
 rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
@@ -166,4 +169,5 @@ sum(!is.na(values(src_pred))) / length(source_l)
 
 leafmap(conn) %>% 
   leafmap(drainage_network, fill_color = "lightblue") %>%
-  leafmap(rel_paths,  palette = viridis::viridis(10, direction = -1))
+  leafmap(rel_paths,  palette = viridis::viridis(10, direction = -1)) %>%
+  leafmap(runout_polygons)

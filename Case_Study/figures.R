@@ -25,7 +25,7 @@ runout_polygons$sim_id <- 1:nrow(runout_polygons)
 # ^ Need to clean this up so make valid not needed
 
 # Select a single debris flow and source point for the example
-runout_polygon <- runout_polygons[33,]
+runout_polygon <- runout_polygons[31,]
 
 # Get corresponding source point
 source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
@@ -44,7 +44,7 @@ drainage_network <- st_sf(st_union(st_union(st_geometry(river_channel), st_geome
 
 
 sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
-                      slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000)
+                      slp_thresh = 35, exp_div = 2.5, per_fct = 1.95, walks = 1000)
 
 # Convert paths to raster with cell transition frequencies
 paths_raster <- walksToRaster(sim_paths, dem)
@@ -119,7 +119,7 @@ m.freq <- ggplot(df_freq, aes(x = x, y = y, fill = freq)) +
 # Plot ECDF
 m.ecdf <- ggplot(df_ecdf, aes(x = x, y = y, fill = ecdf)) +
     geom_raster() +
-    scale_fill_viridis(name = "Traverse\nProbability\n(ECDF)", 
+    scale_fill_viridis(name = "Traverse\nFrequency\n(Quantiles)", 
                        na.value = "transparent",
                      direction = 1) +
     coord_equal() +
@@ -168,7 +168,7 @@ ggsave("Case_Study/Figures/eg_single_maps.png", plot = m.output_single, width = 
 
 # Connectivity and runout map ##################################################
 
-(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeature.Rd"))
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures.Rd"))
 library(ggnewscale) # Allow multiple scales in a map
 library(ggspatial) # for scale bar
 
@@ -188,7 +188,7 @@ df_srcarea <- as.data.frame(src_area, xy = TRUE, na.rm = TRUE)
 m.srcprob <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
             show.legend = FALSE) +
-  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_srcprob, aes(x = x, y = y, fill = lyr1)) +
   scale_fill_viridis(name = "Source\nProbability\n", 
@@ -215,7 +215,7 @@ m.srcprob <- ggplot() +
 m.srcarea <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
             show.legend = FALSE) +
-  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_srcarea, aes(x = x, y = y, fill = ""), alpha = 0.7) +
   scale_fill_manual(name = "Classified\nSource Area", values = "#e74c3c") +
@@ -240,7 +240,7 @@ m.srcarea <- ggplot() +
 m.conn <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
             show.legend = FALSE) +
-  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_conn, aes(x = x, y = y, fill = connectivity_prob)) +
   scale_fill_viridis(name = "Connectivity\nProbability\n", 
@@ -268,7 +268,7 @@ m.conn <- ggplot() +
 m.paths <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
               show.legend = FALSE) +
-  scale_fill_gradient(high = "white", low = "black", na.value = "#FFFFFF") +
+  scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_path, aes(x = x, y = y, fill = freq)) +
   scale_fill_viridis(name = "Traverse\nFrequency\n(Quantiles)", alpha = 0.7, 

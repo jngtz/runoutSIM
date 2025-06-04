@@ -28,9 +28,9 @@ leafmap(source_points, color = "red") %>% leafmap(runout_polygons) %>%
           weight = 4)
 
 # Convert to sp objects
-runout_polygons <- as_Spatial(st_zm(runout_polygons))
-source_points <- as_Spatial(st_zm(source_points))
-river_channel <- as_Spatial(st_zm(river_channel))
+#runout_polygons <- as_Spatial(st_zm(runout_polygons))
+#source_points <- as_Spatial(st_zm(source_points))
+#river_channel <- as_Spatial(st_zm(river_channel))
 
 
 # Load river data used for connecivity analysis
@@ -47,7 +47,7 @@ drainage_network <- st_sf(st_union(st_union(st_geometry(river_channel), st_geome
 
 
 # Read raster using raster package
-dem <- rast("Dev/Data/elev_nosinks.tif")
+dem <- rast("Dev/Data/elev_fillsinks_WangLiu.tif")
 dem
 
 # Note: This DEM is from the (free) publicly available ALOS PALSAR Radiometric Terrain Corrected
@@ -74,7 +74,7 @@ plot(layers)
 
 # Note: These terrain attributes were processed using SAGA-GIS.
 #       First, a sink filled DEM was computed using the "Fill Sinks
-#       (Planchon/Darboux, 2001)" tool. Using this sink-filled DEM,
+#       (Wang and Liu, 2006)" tool. Using this sink-filled DEM,
 #       the "SAGA Wetness Index" and the "Slope, Aspect, Curvature"
 #       tools were used to compute the terrain attributes.
 
@@ -91,18 +91,30 @@ mask_area <- mask(mask_area, vect(river_channel), inverse = TRUE)
 runout_area <- setValues(layers$elev, mask_v)
 runout_area <- mask(runout_area, vect(runout_polygons))
 runout_area <- mask(runout_area, vect(river_channel), inverse = TRUE)
+plot(runout_area)
+
 
 # Create model sample ####################################################
 
 # to provide data for our spatially predictive models we need to create
 # sample of the response variable: slide and non-slides
 
+# sample in estimate of runout polygon release area
+# r_list <- lapply(1:nrow(runout_polygons), function(i) {
+#   single_poly <- runout_polygons[i, ]
+#   elevQuantile(dem = dem, single_poly, quant = 0.25, upper = TRUE)
+# })
+
+# # Combine all the individual raster outputs into one multi-layer SpatRaster
+# r_stack <- rast(r_list)
+# upper_runout <- app(r_stack, fun = function(x) ifelse(any(x == 1, na.rm = TRUE), 1, NA))
+
 # set the see of R's random number generator to reproduce the random samples
 # if the script is run at a later time
 set.seed(1234)
 
-# first, we randomly sample cell locations within slides
-smp.slides <- spatSample(runout_area, size = 500, xy = TRUE, as.df = TRUE,
+# first, we randomly sample cell locations within upper slides 25% percentile
+smp.slides <- spatSample(runout_area), size = 500, xy = TRUE, as.df = TRUE,
                          method = "random", na.rm = TRUE)
 smp.slides[,3] = NULL
 plot(runout_area)
