@@ -114,7 +114,7 @@ plot(runout_area)
 set.seed(1234)
 
 # first, we randomly sample cell locations within upper slides 25% percentile
-smp.slides <- spatSample(runout_area), size = 500, xy = TRUE, as.df = TRUE,
+smp.slides <- spatSample(runout_area, size = 500, xy = TRUE, as.df = TRUE,
                          method = "random", na.rm = TRUE)
 smp.slides[,3] = NULL
 plot(runout_area)

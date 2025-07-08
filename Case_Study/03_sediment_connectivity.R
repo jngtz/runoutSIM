@@ -154,9 +154,32 @@ stopCluster(cl) # Close clusters
 
 conn <- connToRaster(multi_sim_paths, dem)
 
+# Explore distribution of grid cells connected to the main river channel and stream network
+density(conn)
+
+high_conn <- sum(values(r)>=0.8, na.rm = TRUE)
+no_conn <- sum(values(r)==0, na.rm = TRUE)
+total_cells <- sum(values(r)>=0, na.rm = TRUE)
+
+high_conn/total_cells
+no_conn/total_cells
+
+high_conn_km2 <- sum(values(r)>=0.8, na.rm = TRUE) * res(conn)[1]*res(conn)[2] / 1000000
+no_conn_km2 <- sum(values(r)==0, na.rm = TRUE) * res(conn)[1]*res(conn)[2] / 1000000
+total_area_km2 <- total_cells * res(conn)[1]*res(conn)[2] / 1000000
+catch_area_km2 <- (sum(!is.na(values(dem)))) * res(conn)[1]*res(conn)[2] / 1000000
+
+high_conn_km2/catch_area_km2
+no_conn_km2/catch_area_km2
+total_area_km2/catch_area_km2
+
+# paths
+paths_km2 <- (sum(!is.na(values(paths)))) * res(conn)[1]*res(conn)[2] / 1000000
+paths_km2 / catch_area_km2
+
 leafmap(conn)
 
-paths <- walksToRaster(multi_sim_paths, method = "cdf_prob", dem)
+paths <- walksToRaster(multi_sim_paths, method = "freq", dem)
 vel <- velocityToRaster(multi_sim_paths, dem)
 rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
 
