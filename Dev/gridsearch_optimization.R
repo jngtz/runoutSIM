@@ -26,9 +26,9 @@ dem <- raster("Dev/Data/elev_fillsinks_WangLiu.tif")
 
 # Load runout source points and polygons
 source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
-source_points$run_id <- 1:nrow(source_points)
-runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
-# ^ Need to clean this up so make valid not needed
+source_points$row_id <- 1:nrow(source_points)
+runout_polygons <- st_read("Dev/Data/debris_flow_runout_polygons.shp")
+
 
 # Select a single debris flow and source point for the example
 #runout_polygons <- runout_polygons[10:20,]
@@ -39,12 +39,16 @@ runout_polygons$run_id <- 1:nrow(runout_polygons)
 rungeom <- runoptGPP::runoutGeom(as_Spatial(runout_polygons), dem)
 rungeom$fid <- rungeom$id <- NULL
 
-runout_polygons <- cbind(runout_polygons, rungeom)
+runout_polygons <- cbind(runout_polygons, round(rungeom,2))
 
 # Get corresponding source point
-source_points  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygons))
+source_points <- st_join(source_points, runout_polygons, join = st_intersects,
+  left = TRUE,
+  largest = FALSE
+)
 
-leafmap(runout_polygons) %>% leafmap(source_points, col = "red")
+leafmap(runout_polygons, label = "Runout observations") %>% 
+  leafmap(source_points, col = "red", "Runout source points")
 
 
 ## Set-up working environment to allow for parallel processing #################
