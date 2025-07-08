@@ -1,52 +1,39 @@
-# Development (Dev) environment for optimizing random walk runout simulations
+# For runout path simulation and optimization
 library(runoutSim)
+library(runoptGPP)
 
-source("Dev/R/runoptGPP_Dev/pcm_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/pcm_performance.R")
-source("Dev/R/runoptGPP_Dev/pcm_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_gridsearch.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_performance.R")
-source("Dev/R/runoptGPP_Dev/randomwalk_spatial_cross_validation.R")
-source("Dev/R/runoptGPP_Dev/raster_rescale.R")
-source("Dev/R/runoptGPP_Dev/runout_geometry.R")
-source("Dev/R/runoptGPP_Dev/source_area_threshold.R")
-
-#library(runoutSim)
-# source("./Dev/R/pcm.R")
-# source("./Dev/R/random_walk.R")
-# source("./Dev/R/simulation_to_raster.R")
-# source("./Dev/R/runout_connectivity.R")
-# source("./Dev/R/interactive_plot.R")
-
-# New strategy
-# - 1st estimate runout distance PCM (quicker)
-# - 2nd estimate runout path (shorter runout will help reduce processing times.)
-
-
-# If having bounding box length issue ... adjust pcmPerformance to also calculate
-# length as the distance from the highest elevation point (source point)
-# to the distance of the lowest elevation points of the runout.
-
-# OR calculate D8 distance, the distance along the steepest path
-
-
-# Optimizing an individual runout path simulation ##############################
-
+# For spatial data handling
 library(raster)
 library(terra)
 library(sf)
 
+# For parallel processing
+library(doParallel)
+library(foreach)
+library(parallel)
+
+# For data handling and visualization
+library(ggplot2)
+library(dplyr)
+
+
+# Optimizing an individual runout path simulation ##############################
+
 # Load digital elevation model (DEM)
-dem <- raster("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
+dem <- raster("Dev/Data/elev_fillsinks_WangLiu.tif")
+#dem <- raster("Dev/Data/elev_nosinks.tif") # use sink filled DEM to remove pits and flats 
 
 # Load runout source points and polygons
 source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
+source_points$run_id <- 1:nrow(source_points)
 runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
 # ^ Need to clean this up so make valid not needed
 
 # Select a single debris flow and source point for the example
 #runout_polygons <- runout_polygons[10:20,]
-#runout_polygons$sim_id <- 1:nrow(runout_polygons)
+runout_polygons$run_id <- 1:nrow(runout_polygons)
+
+# Ad spatial join to associate runout with source with points
 
 rungeom <- runoptGPP::runoutGeom(as_Spatial(runout_polygons), dem)
 rungeom$fid <- rungeom$id <- NULL
@@ -58,220 +45,120 @@ source_points  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygons))
 
 leafmap(runout_polygons) %>% leafmap(source_points, col = "red")
 
-# 
 
-#library(mlrMBO) # 
-#library(mlr)
-#library(DiceKriging) # used for our proxy/surrogate model for BO
+# Regional debris flow runout model optimization ###############################
 
-#library(lhs)
+## Define sliding friction coefficent search space ####
+pcmmu_vec <- seq(0.04, 0.6, by=0.01)
+polyid_vec <- 1:nrow(source_points)
 
+## Perform grid search optimization with parallelization ####
 
-## Set-up working environment to allow for parallel processing #################
-library(doParallel)
-library(foreach)
-library(ParamHelpers)
-library(lhs)
-library(mlr)
-library(DiceKriging)
-library(mlrMBO)
+setwd("C:\\sda\\Workspace\\sedconnect\\backup")
 
-# Define number of cores 
-ncores <- parallel::detectCores() - 3
-cl     <- makeCluster(ncores)
-registerDoParallel(cl)
+n_cores <- detectCores() -2
+cl <- parallel::makeCluster(n_cores)
+doParallel::registerDoParallel(cl)
 
-# Make sure each worker (core) has access to the data and functions
-clusterExport(cl, c("dem", "runout_polygons", "source_points", "pcmPerformance",
-                    "runoutSim"))
+pcm_gridsearch_multi <-
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
+    
+    pcmGridsearch(dem,
+                  slide_plys = runout_polygons, slide_src = source_points, slide_id = poly_id,
+                  rw_slp = 40, rw_ex = 3, rw_per = 1.9, # from Goetz et al 2021
+                  pcm_mu_v = pcmmu_vec, pcm_md_v = 40,
+                  gpp_iter = 1000,
+                  buffer_ext = NULL, buffer_source = 20,
+                  predict_threshold = 0.5, save_res = TRUE,
+                  plot_eval = FALSE,
+                  saga_lib = NULL)
+    
+  }
 
-# Load required packages on each worker
-clusterEvalQ(cl, {
-  library(raster); library(terra)
-  library(sp);     library(sf)
-  library(ROCR);   library(Rsagacmd)
-  library(runoutSim); library(runoptGPP)
-  TRUE
-})
-
-## Set-up parameter space, surrogate model and acquisition function ############
+parallel::stopCluster(cl)
 
 
-# Define parameters' ranges to explore in optimization. These have been set to
-# approximate parameter ranges by Wichmann (2017 in NHESS, Table 3).
+# Get PCM optimal parameter set
 
-ps <- makeParamSet(
-  makeNumericParam("slp", lower = 20, upper = 40),
-  makeNumericParam("ex",  lower = 1.3,  upper = 3),
-  makeNumericParam("per", lower = 1.5, upper = 2),
-  makeNumericParam("mu",  lower = 0.04, upper = 0.8),
-  makeNumericParam("md",  lower = 20, upper = 150)
+pcm_gridsearch_multi <- list()
+files <- list.files(pattern = "result_pcm_gridsearch_")
+for (i in 1:length(files)) {
+  res_nm <- paste("result_pcm_gridsearch_", i, ".Rd", 
+                  sep = "")
+  res_obj_nm <- load(res_nm)
+  result_pcm <- get(res_obj_nm)
+  pcm_gridsearch_multi[[i]] <- result_pcm
+}
+
+
+pcm_opt <- pcmGetOpt(pcm_gridsearch_multi, performance = "relerr", 
+                     measure = "median", plot_opt = FALSE, from_save = TRUE)
+pcm_opt
+
+save(pcm_opt, file = "pcm_opt_params.Rd")
+save(pcm_gridsearch_multi, file = "pcm_gridsearch_multi.Rd")
+
+# Validation of optimization performance #######################################
+
+# Create the plot of median relative error to sliding friction coefficient 
+# with IQR for uncertainty
+
+grid_res <- data.frame(
+  mu = as.numeric(rownames(pcmGetGrid(performance = "relerr", measure = "median", from_save = TRUE))),
+  relerr_median = pcmGetGrid(performance = "relerr", measure = "median", from_save = TRUE)[,1],
+  error_median = pcmGetGrid(performance = "error", measure = "median", from_save = TRUE)[,1],
+  abs_error_median = abs(pcmGetGrid(performance = "error", measure = "median", from_save = TRUE)[,1]),
+  iqr = pcmGetGrid(performance = "relerr", measure = "IQR", from_save = TRUE)[,1]
 )
 
-# Create a learner object / define the surrogate model for optimization. In this
-# case we are using kriging regression from the DiceKriging package.
+
+grid_res <- grid_res %>%
+  mutate(
+    ymin = relerr_median - iqr / 2,
+    ymax = relerr_median + iqr / 2
+  )
+
+# Plot optimization results
+ggplot(grid_res, aes(x = mu, y = relerr_median)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "gray80", alpha = 0.5) +
+  geom_line(color = "#19191a", linewidth = 0.9) +
+  geom_point(color = "#19191a", size = 1.5) +
+  scale_x_continuous(breaks = seq(0, 2, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+  labs(
+    x = expression("Sliding friction coefficient (" * mu * ")"),
+    y = "Median relative runout distance error"
+  ) +
+  theme_classic(base_size = 10)
 
 
-lrn  <- makeLearner("regr.km", predict.type = "se")
+pcm_spcv <- pcmSPCV(pcm_gridsearch_multi, slide_plys = runout_polygons,
+                    n_folds = 5, repetitions = 100, from_save = FALSE)
 
-# Create a control object to configure the behaviour of the Bayesian optimization
-# process
+freq_pcm <- pcmPoolSPCV(pcm_spcv, plot_freq = FALSE)
+freq_pcm
 
-
-ctrl <- makeMBOControl()
-
-# Set the termination criteria (e.g. run for 30 iterations)
-ctrl <- setMBOControlTermination(ctrl, iters = 30)
-
-# Set the acquisition function (infill criteria). This determines where to sample
-# next (in parameter space) based on the surrogate model predictions.
-# makeBBOInfillCritEI() picks points that maximize the expected improvement (EI) 
-# and balances exploration (trying new spaces) and exploitation (refining the 
-# known good areas)
-
-ctrl <- setMBOControlInfill(ctrl, crit = makeMBOInfillCritEI())
-
-## Define a global (multi) objective function ##################################
-
-# Here we are creating an objective function that finds optimal parameters for
-# regional runout modelling. I.e. the best set of optimal parameters to reduce
-# runout simulation error for the entire runout sample.
-
-#library(smoof)
-
-obj.fun <- makeSingleObjectiveFunction(
-  name = "Global Runout Optimization",
-  fn   = function(x) {
-    x <- as.list(x)
-    
-    # We use an inner for loop (parallelized) to evaluate performance on 
-    # every slide when sampling for optimization function
-    
-    results_df <- foreach(
-      i = seq_len(nrow(runout_polygons)),
-      .combine = rbind
-    ) %dopar% {
-      
-      # runoptGPP::pcmPerformance function is used to determine error:
-      # area under the roc, and runout length (bounding box method)
-      # for each runout sample simulation
-      
-      out <- tryCatch({
-        
-        pcmPerformance(
-          dem            = dem,
-          slide_plys     = runout_polygons,
-          slide_src      = source_points,
-          slide_id       = i,
-          rw_slp         = x$slp, # x will be pulled from our ps object
-          rw_ex          = x$ex,
-          rw_per         = x$per,
-          pcm_mu         = x$mu,
-          pcm_md         = x$md,
-          gpp_iter       = 1000,
-          buffer_ext     = NULL,
-          buffer_source  = 20,
-          plot_eval      = FALSE,
-          return_features= FALSE
-        )
-        
-      }, error = function(e) {
-        message("Slide ", i, " failed: ", e$message)
-        return(NULL)
-      })
-      
-      if (is.null(out)){
-        
-        return(data.frame(
-          id = i, 
-          roc = NA, 
-          len_err = NA, 
-          len_rerr = NA)) # could treat these a no run possible? e.g. roc  = 0, len_err = length of polygon, len_rerr = 1
-        
-      } else {
-        
-        return(data.frame(
-          id      = i, # row id of runout sample
-          roc     = out$roc,
-          len_err = out$length.error,
-          len_rerr = out$ length.relerr,
-          stringsAsFactors = FALSE))
-        
-      }
-      
-    }
-    
-    # We can improve this by having a training and testing error (e.g. cross 
-    # validation)
-    
-    # remove NAs
-    valid <- complete.cases(results_df)
-    results_df <- results_df[valid,]
-    
-    
-    # compute the global loss: mean(–ROC) + mean(|len_err|)
-    # Need to score leng_error - if leng_err need to make from 0 to 1
-    score <- 0.1*(1-mean(results_df$roc)) + 0.9*mean(results_df$len_rerr)
-  },
-  par.set  = ps,
-  minimize = TRUE
-)
-
-## Initialize and Run Bayesian Optimization ####################################
-
-design <- generateDesign(
-  n       = 5 * length(ps$pars), # number of initial samples (5 x number of parameters)
-  par.set = ps, # parameter set
-  fun     = lhs::maximinLHS # latin hypercube sample (stratified sampling in parameter space)
-)
-
-# Run optimization
-
-start_time <- Sys.time()
-
-global_run <- mbo(
-  fun      = obj.fun,
-  design   = design,
-  learner  = lrn,
-  control  = ctrl,
-  show.info= TRUE
-)
-
-end_time <- Sys.time()
-run_time <- end_time - start_time
-run_time #2.25 hours
-
-## Summarize parameter optimization ############################################
-
-cat("Best global parameters:\n")
-print(global_run$x)
-cat("Global objective value:\n")
-print(global_run$y)
-
-
-# Save results
-setwd("C:\\sda\\Workspace\\sedconnect")
-save(global_run, file = "Global_MBO_RunoutSim.Rd")
-(load("Global_MBO_RunoutSim.Rd"))
-
-# Check optimization if it was sufficient
-plot(global_run)
 
 # Retrieve overall performance
 
+n_cores <- detectCores() -2
+cl <- parallel::makeCluster(n_cores)
+doParallel::registerDoParallel(cl)
+
 results_df <- foreach(
-  i = seq_len(nrow(runout_polygons))) %dopar% {
+  i = seq_len(nrow(runout_polygons)),
+  .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
     out <- 
       pcmPerformance(
         dem            = dem,
         slide_plys     = runout_polygons,
         slide_src      = source_points,
         slide_id       = i,
-        rw_slp         = global_run$x$slp,
-        rw_ex          = global_run$x$ex,
-        rw_per         = global_run$x$per,
-        pcm_mu         = global_run$x$mu,
-        pcm_md         = global_run$x$md,,
+        rw_slp         = 40,
+        rw_ex          = 3,
+        rw_per         = 1.9,
+        pcm_mu         = as.numeric(pcm_opt$pcm_mu),
+        pcm_md         = 40,
         gpp_iter       = 1000,
         buffer_ext     = NULL,
         buffer_source  = 20,
@@ -282,8 +169,9 @@ results_df <- foreach(
 
 results_df
 
-stopCluster(cl)
+parallel::stopCluster(cl)
 
+save(results_df, file = "runoutSim_individual_performance.Rd")
 
 # Extract error
 runout_polygons$sim_roc <- sapply(results_df, function(x) x$roc)
@@ -294,11 +182,10 @@ runout_polygons$sim_length <- runout_polygons$length + runout_polygons$sim_lengt
 median(runout_polygons$sim_length_relerror)
 IQR(runout_polygons$sim_length_relerror)
 
-
 median(runout_polygons$sim_length_error)
 
 
-png(filename="hist_error_plots.png", res = 300, width = 7.5, height = 6,
+png(filename="C:/GitProjects/runoutSim/Case_Study/Figures/hist_error_plots.png", res = 300, width = 7.5, height = 6,
     units = "in", pointsize = 11)
 
 par(family = "Arial", mfrow = c(2,2), mar = c(4, 3, 0.5, 0.5),
@@ -322,9 +209,71 @@ plot(runout_polygons$sim_length, runout_polygons$length,
 
 dev.off()
 
+library(patchwork)  # or use gridExtra if you prefer
 
+# Individual plots
+p1 <- ggplot(grid_res, aes(x = mu, y = relerr_median)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "gray80", alpha = 0.5) +
+  geom_line(color = "#19191a", linewidth = 0.7) +
+  geom_point(color = "#19191a", size = 0.7) +
+  scale_x_continuous(breaks = seq(0, 2, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+  labs(
+    x = expression("Sliding friction coefficient (" * mu * ")"),
+    y = "Median relative runout distance error"
+  ) +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
 
-# > change below... 
+p2 <- ggplot(runout_polygons, aes(x = sim_length_relerror)) +
+  geom_histogram(bins = 40, fill = "gray70", color = "black") +
+  labs(x = "Runout length relative error", y = "Frequency") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+p3 <- ggplot(runout_polygons, aes(x = sim_length_error)) +
+  geom_histogram(bins = 40, fill = "gray70", color = "black") +
+  labs(x = "Runout length error (m)", y = "Frequency") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+p4 <- ggplot(runout_polygons, aes(x = sim_length, y = length)) +
+  geom_point(shape = 20) +
+  labs(x = "Simulated runout length (m)",
+       y = "Observed runout length (m)") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+# Save combined figure
+perf_opt_plot <- (p1 | p2) / (p3 | p4)
+perf_opt_plot <- perf_opt_plot + plot_annotation(tag_levels = list(c('(a)', '(b)', '(c)', '(d)'))) &
+  theme(plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 9, hjust = 0, vjust = 0, face = 'bold'))
+perf_opt_plot
+
+ggsave("C:/GitProjects/runoutSim/Case_Study/Figures/hist_error_plots.png",
+       plot = perf_opt_plot,
+       width = 170, height = 140, units = "mm", dpi = 300)
 
 # Map results ##################################################################
 
@@ -369,23 +318,18 @@ for(i in 1:nrow(source_xy)){
 }
 
 
-library(parallel)
 # Define number of cores to use
 n_cores <- detectCores() -2
 
-dem_terra <- terra::rast('C:\\sda\\GitProjects\\runoutSim\\Dev\\Data\\elev_nosinks.tif')
+dem_terra <- terra::rast('C:/GitProjects/runoutSim/Dev/Data/elev_fillsinks_WangLiu.tif')
 
 packed_dem <- wrap(dem_terra)
 
 # Create parallel loop
 cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
 
-# Load objects and 'custom' functions to each cluster
-# clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
-#                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
-#                              "feature_mask"))
 
-clusterExport(cl, varlist = c("packed_dem", "global_run"))
+clusterExport(cl, varlist = c("packed_dem"))
 
 # Load required packages to each cluster
 clusterEvalQ(cl, {
@@ -394,23 +338,14 @@ clusterEvalQ(cl, {
 })
 
 
-# Load objects and 'custom' functions to each cluster
-# clusterExport(cl, varlist = c("runoutSim", "euclideanDistance", "adjCells",
-#                              "adjRowCol", "pcm", "packed_dem","sourceConnect",
-#                              "feature_mask"))
-
-
-
-
-
 multi_sim_paths <- parLapply(cl, source_l, function(x) {
   
   runoutSim(dem = unwrap(packed_dem), xy = x, 
-            mu = global_run$x$mu, 
-            md = global_run$x$md, 
-            slp_thresh = global_run$x$slp, 
-            exp_div = global_run$x$ex, 
-            per_fct = global_run$x$per, 
+            mu = 0.08, 
+            md = 40, 
+            slp_thresh = 40, 
+            exp_div = 3, 
+            per_fct = 1.9, 
             walks = 1000)
 })
 
@@ -423,8 +358,70 @@ trav_prob <- runoutSim::rasterCdf(trav_freq)
 
 trav_vel <- velocityToRaster(multi_sim_paths, dem_terra)
 
-leafmap(runout_polygons) %>%
-  leafmap(trav_freq) %>%
-  leafmap(trav_prob) %>%
-  leafmap(trav_vel, palette = 'plasma') %>%
-  leafmap(source_points, color = "red") 
+leafmap(runout_polygons, label = "Runout observations", opacity = .35) %>%
+  leafmap(trav_prob, palette =viridis::viridis(10, direction = -1), label = "Traverse probability") %>%
+  leafmap(trav_vel, palette = 'plasma', label = "Velocity") %>%
+  leafmap(source_points, color = "red", label = "Runout source") 
+
+writeRaster(trav_prob, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\pcm_mu_opt_runout_trav_ecdf_prob.tif")
+writeRaster(trav_vel, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\pcm_mu_opt_runout_trav_vel.tif")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(maptiles)
+library(terra)
+library(ggplot2)
+
+# Set your area of interest (bounding box) in EPSG:4326
+library(sf)
+library(maptiles)
+library(terra)
+library(ggplot2)
+
+# Create a bounding box using sf (xmin, ymin, xmax, ymax)
+bbox <- st_bbox(c(xmin = -123.2, xmax = -123.0, ymin = 49.2, ymax = 49.3), crs = 4326)
+
+# Download ESRI World Imagery tiles
+esri_raster <- get_tiles(x = bbox, 
+                         provider = "Esri.WorldImagery", 
+                         crop = TRUE, 
+                         zoom = 14)
+
+
+# Convert raster to data.frame for ggplot
+esri_df <- as.data.frame(esri_raster, xy = TRUE)
+colnames(esri_df)[3:5] <- c("r", "g", "b")
+
+# Create a new hex color column
+esri_df$RGB <- rgb(esri_df$r, esri_df$g, esri_df$b, maxColorValue = 255)
+
+# Plot in ggplot2
+ggplot(esri_df) +
+  geom_raster(data = esri_df, aes(x = x, y = y, fill = RGB))+
+  scale_fill_identity() +
+  coord_sf() +
+  theme_void()
+
+
+ggplot() +
+  geom_raster(data = esri_df, aes(x = x, y = y, fill = RGB)) +
+  scale_fill_identity() +
+  geom_sf(data = runout_polygons, fill = NA, color = "red", size = 0.6) +
+  coord_sf() +
+  theme_void()
