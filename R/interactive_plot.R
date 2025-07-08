@@ -118,7 +118,7 @@ leafmap<- function(m = NULL,
       
       m <- m %>%
         leaflet::addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
-                       project = TRUE, layerId = label, group = label) %>%
+                       project = FALSE, layerId = label, group = label) %>%
         leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
       
       if(add_legend){
@@ -148,7 +148,7 @@ leafmap<- function(m = NULL,
       
       m <- m %>%
         leaflet::addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
-                       project = TRUE, layerId = label, group = label) 
+                       project = FALSE, layerId = label, group = label) 
         
         
       if(add_legend){
