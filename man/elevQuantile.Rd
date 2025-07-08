@@ -30,7 +30,7 @@ This function is useful for identifying areas of extreme elevation within a poly
 library(terra)
 dem <- rast("dem.tif")
 runout_ply <- vect("runout_area.shp")
-release_zone <- elevPercentile(dem, runout_ply, per = 0.05, upper = TRUE)
+release_zone <- elevQuantile(dem, runout_ply, quant = 0.05, upper = TRUE)
 }
 
 }

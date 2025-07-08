@@ -7,7 +7,8 @@
 makeSourceList(source_xy)
 }
 \arguments{
-\item{source_xy}{A matrix with coordinate pairs (see \code{terra::xyFromCell})}
+\item{source_xy}{An \code{sf} object with POINT geometry or a
+matrix with coordinate pairs (see \code{terra::xyFromCell})}
 }
 \description{
 Create a list of xy coordinates from terra::xyFromCell coordinates
