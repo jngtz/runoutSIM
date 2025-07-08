@@ -458,7 +458,8 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
 
 #' Create a list of xy coordinates from terra::xyFromCell coordinates
 #'
-#' @param source_xy A matrix with coordinate pairs (see `terra::xyFromCell`)
+#' @param source_xy An `sf` object with POINT geometry or a 
+#' matrix with coordinate pairs (see `terra::xyFromCell`)
 
 #'
 #' @examples
@@ -481,6 +482,20 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
 
 makeSourceList <- function(source_xy)
 {
-  lapply(seq_len(nrow(source_xy)), function(i) matrix(source_xy[i, ], ncol = 2))
+  
+  if(inherits(source_xy, "sf") && unique(st_geometry_type(source_xy)) == "POINT" ){
+    
+    source_l <- lapply(1:nrow(source_xy), function(i) {
+      st_coordinates(source_xy[i, ])
+    })
+    
+  } else {
+    
+    lapply(seq_len(nrow(source_xy)), function(i) matrix(source_xy[i, ], ncol = 2))
+    
+  }
+  
+  return(source_l)
+
 }
 
