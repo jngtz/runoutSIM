@@ -145,7 +145,6 @@ rw_opt
 We now define grid vectors for:
 
 -   `pcmmd`: mass-to-drag ratio (affects how far material travels)
-
 -   `pcmmu`: sliding friction coefficient
 
 ```{r}

@@ -16,7 +16,8 @@ leafmap(
   weight = 2,
   palette = "viridis",
   basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap"),
-  add_legend = TRUE
+  add_legend = TRUE,
+  add_image_query = TRUE
 )
 }
 \arguments{
@@ -43,6 +44,8 @@ leafmap(
 \item{basemaps}{Character vector of tile provider names (from \code{leaflet::providers}) to include as base layers. Defaults to \code{c("Esri.WorldImagery", "Esri.WorldTopoMap")}.}
 
 \item{add_legend}{Logical to produce a legend or not. Defaults to \code{TRUE}. Also controls if raster value query appears.}
+
+\item{add_image_query}{Logical to add mouse hover query of raster values. Defaults to \code{TRUE}.}
 }
 \value{
 A \code{leaflet} map object with the data layer(s) and controls.
@@ -57,6 +60,9 @@ This function is designed to handle both standalone and piped usage. If the firs
 \item Vector data supports POINT, LINESTRING, and POLYGON geometries.
 \item Attributes are displayed in scrollable popups if there are many fields.
 \item The function adds scale bars, measurement tools, and layer controls.
+\item add_image_query can make the file size of the leaflet html widget very large
+e.g. up to 20x's larger. It is recommended to have it = \code{FALSE} when exporting
+as a Web Page or html widget.
 }
 }
 \examples{

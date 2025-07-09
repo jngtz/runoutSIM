@@ -39,13 +39,10 @@ library(sf)
 # Load digital elevation model (DEM)
 dem <- rast("C:/GitProjects/runoutSIM/Dev/Data/elev_fillsinks_WangLiu.tif")
 
-# Round elevation to nearest meter [source was integer]
-dem <- round(dem)
-
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
 aspect <- terrain(dem, "aspect", unit="radians")
-hill <- round(shade(slope, aspect, 40, 270, normalize = TRUE))
+hill <- shade(slope, aspect, 40, 270)
 
 # Load debris flow runout source points and polygons
 source_points <- st_read("C:/GitProjects/runoutSIM/Dev/Data/debris_flow_source_points.shp")
@@ -60,12 +57,15 @@ bnd_catchment <- st_read("C:/GitProjects/runoutSIM/Dev/Data/basin_rio_olivares.s
 
 Using the `leafmap()` function, we can quickly create an interactive leaflet map for viewing the data. Similar to `dplyr`, we use the `%>%` operator to pipe together multiple `leafmap()` calls to create a combined leaflet map with multiple layers.
 
+**Tip:** `leafmap()` has the option to interactively query raster values with a mouse hover. This option is turned on by default, but can result in a considerable increase in the file size of the leaflet widget (e.g. when exported for sharing). It is recommended to have `add_image_query = FALSE` when saving / exporting the leaflet map.
+
 ```{r, fig.show='hold', out.width="100%", out.height="500px"}
 map <- leafmap(bnd_catchment, color = '#f7f9f9', fill_color = '#FF000000', weight = 4) %>%
     leafmap(runout_polygons) %>%
     leafmap(source_points, color = '#e74c3c') %>%
-    leafmap(hill, palette = grey(150:255/255), opacity = 1, add_legend = FALSE) %>%
-    leafmap(dem, palette = viridis::mako(10), opacity = 0.6)
+    leafmap(hill, palette = grey(0:100/100), opacity = 1, add_legend = FALSE, 
+            add_image_query = FALSE) %>%
+    leafmap(dem, palette = viridis::mako(10), opacity = 0.6, add_image_query = FALSE)
 map
 ```
 
@@ -127,7 +127,7 @@ paths_raster <- walksToRaster(sim_paths, dem, method = "freq")
 
 # Plot results
 paths_raster <- crop(paths_raster, ext(runout_polygon)+500)
-plot(crop(hill, ext(runout_polygon)+500), col=grey(150:255/255), legend=FALSE,
+plot(crop(hill, ext(runout_polygon)+500), col=grey(0:100/100), legend=FALSE,
      mar=c(2,2,1,4), main = "Runout traverse frequency")
 plot(paths_raster, legend = T, alpha = 0.5, add = TRUE)
 plot(st_geometry(runout_polygon), add = TRUE)
@@ -144,9 +144,68 @@ vel_raster <- velocityToRaster(sim_paths, dem)
 
 # Plot results
 vel_raster <- crop(vel_raster, ext(runout_polygon)+500)
-plot(crop(hill, ext(runout_polygon)+500), col=grey(150:255/255), legend=FALSE,
+plot(crop(hill, ext(runout_polygon)+500), col=grey(0:100/100), legend=FALSE,
      mar=c(2,2,1,4), main = "Runout velocity")
 plot(vel_raster, col = map.pal('plasma'), legend = TRUE, alpha = 0.5, add = TRUE)
+plot(st_geometry(runout_polygon), add = TRUE)
+plot(source_point, add = TRUE)
+```
+
+## Computing connectivity probability
+
+The `runoutSim()` function also allows us to calculate the connectivity probability of a source cell to feature of interest - i.e. the proportion of walks that intersect a feature from a given source cell.
+
+In this example, we will determine the connectivity probability of a simulated debris flow to a river channel. Using `makeConnFeature()` function, we will create a matrix indicating with a value of 1 which cells contain the river channel.
+
+```{r}
+# Load river channel polygon (vector)
+river_channel <- st_read("C:/GitProjects/runoutSIM/Dev/Data/river_channel.shp")
+
+# Create a connectivity feature for runoutSim that matches the input DEM
+feature_mask <- makeConnFeature(river_channel, dem)
+```
+
+Now that we have a connectivity feature, we can re-run `runoutSIM()` with some additional parameter options: `source_connect = TRUE` allowing to calculate a connectivity probability and `connect_feature = feature_mask`.
+
+```{r, fig.height=7, fig.width = 5, fig.align='center'}
+sim_paths = runoutSim(dem = dem, 
+                      xy = source_crds, 
+                      mu = 0.08, 
+                      md = 140, 
+                      slp_thresh = 35, 
+                      exp_div = 2.5, 
+                      per_fct = 1.95, 
+                      walks = 1000,
+                      source_connect = TRUE,
+                      connect_feature = feature_mask)
+
+# Plot structure of sim_paths
+str(sim_paths)
+
+# Get connectivity probability
+sim_paths$prob_connect
+
+tp_raster <- walksToRaster(sim_paths, dem, method = "cdf_prob")
+conn_raster <- connToRaster(sim_paths, dem)
+
+# Crop results
+tp_crop <- crop(tp_raster, ext(runout_polygon)+ 500)
+conn_crop <- crop(conn_raster, ext(runout_polygon)+ 500)
+
+# Plot results
+par(mfrow = c(2,1))
+plot(crop(hill, ext(runout_polygon)+500), col=grey(0:100/100), legend=FALSE,
+     mar=c(2,2,1,4), main = "Traverse prob.")
+plot(st_geometry(river_channel), col = "lightblue", add = TRUE)
+plot(tp_crop, legend = TRUE, alpha = 0.5, add = TRUE)
+plot(st_geometry(runout_polygon), add = TRUE)
+plot(source_point, add = TRUE)
+
+
+plot(crop(hill, ext(runout_polygon)+500), col=grey(0:100/100), legend=FALSE,
+     mar=c(2,2,1,4), main = "Connectivity prob.")
+plot(st_geometry(river_channel), col = "lightblue", add = TRUE)
+plot(conn_crop, legend = TRUE, alpha = 0.5, add = TRUE)
 plot(st_geometry(runout_polygon), add = TRUE)
 plot(source_point, add = TRUE)
 ```
@@ -190,15 +249,15 @@ trav_prob <- walksToRaster(sim_runs, method = "max_cdf_prob", dem)
 
 # Plot random walks from mulitple source cells
 par(mfrow = c(1,3))
-plot(hill, col=grey(150:255/255), legend=FALSE, mar=c(2,2,1,4), 
+plot(hill, col=grey(0:100/100), legend=FALSE, mar=c(2,2,1,4), 
      main = "Traverse frequency")
 plot(trav_freq, add = TRUE, alpha = 0.7)
 
-plot(hill, col=grey(150:255/255), legend=FALSE, mar=c(2,2,1,4), 
+plot(hill, col=grey(0:100/100), legend=FALSE, mar=c(2,2,1,4), 
      main = "Traverse probability (max.)")
 plot(trav_prob, add = TRUE, alpha = 0.7)
 
-plot(hill, col=grey(150:255/255), legend=FALSE, mar=c(2,2,1,4), 
+plot(hill, col=grey(0:100/100), legend=FALSE, mar=c(2,2,1,4), 
      main = "Velocity (m/s)")
 plot(vel_ms, col = map.pal("plasma"), add = TRUE, alpha = 0.7)
 
@@ -214,18 +273,23 @@ sim_map <-
   # Debris flow observations
   leafmap(runout_polygons, opacity = 0.3, label = "Runout polygons") %>%
   leafmap(source_points, color = '#e74c3c', label = "Source points") %>%
+  # Terrain data
+  leafmap(hill, palette = grey(0:100/100), opacity = 1, add_legend = FALSE, 
+            add_image_query = FALSE, label = "Hillshade") %>%
+  leafmap(dem, palette = viridis::mako(10), opacity = 0.6, 
+          add_image_query = FALSE, label = "DEM")
   # Modelling results
   leafmap(trav_prob,  palette = viridis::viridis(10, direction = -1), 
-          label = "Traverse prob") %>%
+          label = "Traverse prob", add_image_query = FALSE) %>%
   leafmap(vel_ms,  palette = viridis::plasma(10, direction = -1),
-          label = "Velocity")
+          label = "Velocity", add_image_query = FALSE)
 
 # Start with mapped zoomed in
 sim_map <- leaflet::setView(sim_map, lng = -70.13694, lat = -33.3703, zoom = 13)
 
 
 # Hide layers
-sim_map <- leaflet::hideGroup(sim_map, c("Velocity", "Source points"))
+sim_map <- leaflet::hideGroup(sim_map, c("Velocity", "Source points", "DEM", "Hillshade"))
 
 sim_map
 

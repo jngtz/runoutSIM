@@ -87,7 +87,7 @@ feature_mask <- makeConnFeature(river, dem)
 # Simulate runout from a single source point
 sim_paths <- runoutSim(dem = dem, xy = c(500000, 5200000), mu = 0.08, md = 140,
                        slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
-                       source_connect = TRUE, feature_layer = feature_mask)
+                       source_connect = TRUE, connect_feature = feature_mask)
 
 # Convert results to raster
 trav_freq <- walksToRaster(sim_paths, dem)

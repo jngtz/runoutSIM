@@ -123,20 +123,31 @@ walksToRaster <- function(x, dem, method = "freq", weights = NULL){
 
 connToRaster <- function(x, dem){
   
-  #remove any with NA cell traversed
-  x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
-  
-  prob_connect <- round(sapply(x, function(x) x$prob_connect),3)
-  cell_index <- sapply(x, function(x) x$start_cell)
-  
-  
   conn_r <- terra::rast(dem)
   terra::values(conn_r) <- NA
   
-  # Assign connectivity to cells
-  conn_r[cell_index] <- prob_connect
-  names(conn_r) <- "connectivity_prob"
-  varnames(conn_r) <- "connectivity_prob"
+  if(!(is.list(x) && !is.null(names(x)))){
+    #remove any with NA cell traversed
+    x <- x[!sapply(x, function(el) any(is.na(as.vector(el$cell_trav_freq))))]
+    
+    prob_connect <- round(sapply(x, function(x) x$prob_connect),3)
+    cell_index <- sapply(x, function(x) x$start_cell)
+    
+    # Assign connectivity to cells
+    conn_r[cell_index] <- prob_connect
+    names(conn_r) <- "connectivity_prob"
+    varnames(conn_r) <- "connectivity_prob"
+    
+  } else {
+    
+    prob_connect <- round(x$prob_connect,3)
+    conn_r[x$start_cell] <- prob_connect
+    names(conn_r) <- "connectivity_prob"
+    varnames(conn_r) <- "connectivity_prob"
+    
+  }
+  
+ 
   return(conn_r)
 }
 
