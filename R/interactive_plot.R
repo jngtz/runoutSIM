@@ -19,6 +19,7 @@ require(leafem)
 #' @param palette Color palette name used with `leaflet::colorNumeric()` for raster coloring. Defaults to `"viridis"`. If categorical values, supply a list - e.g.  list(classes = 1, colors = "#99d2ff", labels = "Water"))
 #' @param basemaps Character vector of tile provider names (from `leaflet::providers`) to include as base layers. Defaults to `c("Esri.WorldImagery", "Esri.WorldTopoMap")`.
 #' @param add_legend Logical to produce a legend or not. Defaults to `TRUE`. Also controls if raster value query appears. 
+#' @param add_image_query Logical to add mouse hover query of raster values. Defaults to `TRUE`. 
 #'
 #' @return A `leaflet` map object with the data layer(s) and controls.
 #'
@@ -27,6 +28,9 @@ require(leafem)
 #' - Vector data supports POINT, LINESTRING, and POLYGON geometries.
 #' - Attributes are displayed in scrollable popups if there are many fields.
 #' - The function adds scale bars, measurement tools, and layer controls.
+#' - add_image_query can make the file size of the leaflet html widget very large
+#'   e.g. up to 20x's larger. It is recommended to have it = `FALSE` when exporting 
+#'   as a Web Page or html widget.
 #'
 #' @examples
 #' \dontrun{
@@ -55,7 +59,8 @@ leafmap<- function(m = NULL,
                         weight = 2,
                         palette = "viridis",
                         basemaps = c("Esri.WorldImagery", "Esri.WorldTopoMap"),
-                        add_legend = TRUE) {
+                        add_legend = TRUE,
+                        add_image_query = TRUE) {
   
   # —— AUTO‐SWAP FOR STANDALONE VS PIPE —— #
   # if data was never given, but m *is* a raster or sf, assume user called
@@ -118,8 +123,13 @@ leafmap<- function(m = NULL,
       
       m <- m %>%
         leaflet::addRasterImage(sim_leaflet, colors = pal, opacity = opacity,
-                       project = FALSE, layerId = label, group = label) %>%
-        leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+                       project = FALSE, layerId = label, group = label) 
+      
+      if(add_image_query){
+        m <- m %>% 
+          leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+      }
+     
       
       if(add_legend){
         m <- leaflet::addLegend(m,
@@ -153,8 +163,11 @@ leafmap<- function(m = NULL,
         
       if(add_legend){
         m <- leaflet::addLegend(m, pal = pal, values = raster_vals, title = label, group = label,
-                           labFormat = labelFormat(big.mark = "")) %>%
-          leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+                           labFormat = labelFormat(big.mark = ""))
+        if(add_image_query){
+          m <- m %>% 
+            leafem::addImageQuery(sim_leaflet, project = TRUE, layerId = label, prefix = "")
+        }
       }
 
     }
