@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-The `runoutSIM` package is developed for regional-scale runout simulations using random walks. This vignette provides an introduction to applying `runoutSIM` for regional debris flow simulation using a subcatchment of the upper Maipo river basin, Chile as an example. In this vignette, we will:
+The `runoutSIM` package is developed for regional-scale runout simulations (spatial distribution and velocity) using random walks. This vignette provides an introduction to applying `runoutSIM` for regional debris flow simulation using a subcatchment of the upper Maipo river basin, Chile as an example. In this vignette, we will:
 
 -   Load and visualize spatial data
 -   Simulate runout from single and multiple source cells
@@ -277,7 +277,7 @@ sim_map <-
   leafmap(hill, palette = grey(0:100/100), opacity = 1, add_legend = FALSE, 
             add_image_query = FALSE, label = "Hillshade") %>%
   leafmap(dem, palette = viridis::mako(10), opacity = 0.6, 
-          add_image_query = FALSE, label = "DEM")
+          add_image_query = FALSE, label = "DEM") %>%
   # Modelling results
   leafmap(trav_prob,  palette = viridis::viridis(10, direction = -1), 
           label = "Traverse prob", add_image_query = FALSE) %>%
