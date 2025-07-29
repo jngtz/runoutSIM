@@ -20,11 +20,15 @@ rockfall <- function(mu = 0.1, v_p = 1, h_i = 300, h_p = 400,
 
     if(method == "rolling"){
       
-      v_i <- sqrt(v_p^2 + 2 * g * (h_f - mu * l))
+      vel <- v_p^2 + 2 * g * (h_f - mu * l)
+    
+      v_i <- if (vel < 0 | is.nan(vel)) NaN else sqrt(vel)
       
     } else if(method == "sliding"){
       
-      v_i <- sqrt(v_p^2 + 10/7 * g * (h_f - mu * l))
+      vel <- v_p^2 + 10/7 * g * (h_f - mu * l)
+      
+      v_i <- if (vel < 0 | is.nan(vel)) NaN else sqrt(vel)
       
     }
   }
@@ -85,6 +89,7 @@ for (k in 1:length(Ks)){
     
     v_p = vel
     h_p = h_i
+    
     if(is.nan(v_p)){
       vel = 0
     }
@@ -99,7 +104,7 @@ for (k in 1:length(Ks)){
   
   k_plots[[k]] <- ggplot(profile_df, aes(x = Distance, y = Elevation)) +
     geom_line(color = "black", size = 0.6) +
-    labs(title = "Synthetic Hillslope Profile (Cliff to Talus Slope)",
+    labs(title = paste("K = ", Ks[k]),
          x = "Distance (m)", y = "Elevation (m)") +
     geom_point(data = stop_point) +
     theme_minimal() +

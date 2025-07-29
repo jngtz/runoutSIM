@@ -20,6 +20,7 @@ source("./Dev/R/interactive_plot.R")
 library(terra)
 library(sf)
 library(mapview)
+library(runoutSim)
 
 # Load data ####################################################################
 
@@ -52,8 +53,8 @@ feature_mask <- makeConnFeature(river, dem)
 # Run PCM-Random Walk for Single Source Cell ###################################
 
 # Run for a single source point
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
-                      slp_thresh = 35, exp_div = 3, per_fct = 1.95, walks = 1000,
+sim_paths = runoutSim_rockfall(dem = dem, st_coordinates(source_point), mu = 0.2, md = 140, 
+                      slp_thresh = 50, exp_div = 3, per_fct = 1.95, walks = 1000,
                       source_connect = TRUE, connect_feature = feature_mask)
 
 # Convert paths to raster with cell transition frequencies
