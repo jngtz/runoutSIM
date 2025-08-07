@@ -9,7 +9,7 @@ library(sf)
 # Load data ####################################################################
 
 # Load digital elevation model (DEM)
-dem <- rast("Dev/Data/elev_fillsinks_WangLiu.tif")
+dem <- rast("Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -18,9 +18,9 @@ hill <- shade(slope, aspect, 40, 270)
 
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
+source_points <- st_read("Data/debris_flow_source_points.shp")
 source_points$Id <- NULL
-runout_polygons <- st_read("Dev/Data/debris_flow_runout_polygons.shp")
+runout_polygons <- st_read("Data/debris_flow_runout_polygons.shp")
 
 
 
@@ -36,9 +36,9 @@ source_points <- st_join(source_points, runout_polygons, join = st_intersects,
 )
 
 # Load river channel and stream network, and basin boundary
-river_channel <- st_read("Dev/Data/river_channel.shp") # may need to buffer to represent high flow conditions...
-stream_network <- st_read("Dev/Data/river_rio_olivares.shp")
-bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+river_channel <- st_read("Data/river_channel.shp") # may need to buffer to represent high flow conditions...
+stream_network <- st_read("Data/river_rio_olivares.shp")
+bnd_catchment <- st_read("Data/basin_rio_olivares.shp")
 
 # Buffer stream channels
 buffer_stream <- st_buffer(stream_network, dist = 30)

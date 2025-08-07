@@ -1,20 +1,18 @@
 # runoutSIM case study: Paper figures ##########################################
 
-## Author ####
-# By Jason Goetz, PhD (jgoetz@wlu.ca)
-# Department of Geography and Environmental Studies,
-# Wilfrid Laurier University, Canada
-
-# August 7, 2025
-
-## Description ####
-
 # This script produces figures used in case study (demo) for the runoutSIM
 # package for regional mass movement runout simulation.
 
 # It provides an example of using runoutSIM for regional debris flow runout
 # model optimization using data for the Río Olivares basin of the semi-arid 
 # central Chilean Andes. 
+
+# By Jason Goetz, PhD (jgoetz@wlu.ca)
+# Department of Geography and Environmental Studies,
+# Wilfrid Laurier University, Canada
+
+# August 7, 2025
+
 
 # Load libraries to handle spatial data ########################################
 library(runoutSim)
@@ -24,7 +22,7 @@ library(sf)
 # Load data ####################################################################
 
 # Load digital elevation model (DEM)
-dem <- rast("Dev/Data/elev_fillsinks_WangLiu") # use sink filled DEM to remove pits and flats 
+dem <- rast("Data/elev_fillsinks_WangLiu") # use sink filled DEM to remove pits and flats 
 
 src_pred <- rast("Data/src_pred_mask.tif")
 src_area <- rast("Data/auto_classified_source_areas.tif")
@@ -35,10 +33,10 @@ slope <- terrain(dem, "slope", unit="radians")
 aspect <- terrain(dem, "aspect", unit="radians")
 hill <- shade(slope, aspect, 40, 270)
 
-bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+bnd_catchment <- st_read("Data/basin_rio_olivares.shp")
 # Load runout source points and polygons
-source_points <- st_read("Dev/Data/debris_flow_source_points.shp")
-runout_polygons <- st_make_valid(st_read("Dev/Data/debris_flow_runout_polygons.shp"))
+source_points <- st_read("Data/debris_flow_source_points.shp")
+runout_polygons <- st_make_valid(st_read("Data/debris_flow_runout_polygons.shp"))
 runout_polygons$sim_id <- 1:nrow(runout_polygons)
 # ^ Need to clean this up so make valid not needed
 
@@ -50,10 +48,10 @@ source_point  <- st_filter(st_as_sf(source_points), st_as_sf(runout_polygon))
 
 # Load river data used for connecivity analysis
 
-river_channel <- st_read("Dev/Data/river_channel.shp")
-stream_channels <- st_read("Dev/Data/river_rio_olivares.shp")
+river_channel <- st_read("Data/river_channel.shp")
+stream_channels <- st_read("Data/river_rio_olivares.shp")
 
-bnd_catchment <- st_read("Dev/Data/basin_rio_olivares.shp")
+bnd_catchment <- st_read("Data/basin_rio_olivares.shp")
 # buffer stream channels
 buffer_stream <- st_buffer(stream_channels, dist = 30)
 

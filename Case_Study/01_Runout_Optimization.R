@@ -355,7 +355,7 @@ for(i in 1:nrow(source_xy)){
 # Define number of cores to use
 n_cores <- detectCores() -2
 
-dem_terra <- terra::rast('C:/GitProjects/runoutSim/Dev/Data/elev_fillsinks_WangLiu.tif')
+dem_terra <- terra::rast('C:/GitProjects/runoutSim/Data/elev_fillsinks_WangLiu.tif')
 
 packed_dem <- wrap(dem_terra)
 
