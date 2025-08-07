@@ -1,2 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<metadata xml:lang="en"><Esri><CreaDate>20250527</CreaDate><CreaTime>13112600</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files\arcgis\pro\Resources\ArcToolbox\toolboxes\Spatial Analyst Tools.tbx\Fill" Date="20250527" Time="131126">Fill elev.tif C:\sda\GitProjects\runoutSim\Dev\Data\elev_fillsinks.tif #</Process></lineage></DataProperties></Esri></metadata>
