@@ -20,7 +20,7 @@
 # 4. Get optimal runout parameters
 # 5. Validate model performance
 # 6. Run model from training source
-# 7. Coerce modelling results to rasters
+# 7. Coerce modelling results to rasters (export)
 
 # Load required packages #######################################################
 
