@@ -24,6 +24,14 @@ or
 
 ```r
 remotes::install_github("jngtz/runoutSIM")
+
+## Examples
+
+[A basic introduction to runoutSIM](https://jngtz.github.io/runoutSIM/articles/runoutSIM_basic_intro.html)
+
+[Parallel computing with runoutSIM]([https://jngtz.github.io/runoptGPP/articles/gpp_rw_pcm_regional_optimization.html](https://jngtz.github.io/runoutSIM/articles/runoutSIM_parallelization.html)
+
+[Optimizing runoutSIM parameters with runoptGPP](https://jngtz.github.io/runoutSIM/articles/runoutSIM_optimize_w_runoptGPP.html)
 ```
 
 ## Contributing
