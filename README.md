@@ -10,7 +10,7 @@ The `runoutSIM` R package is developed for regional-scale runout simulations usi
 * Allows easy workflow for source area prediction models (e.g., GAM, machine learning)
 * Interactive mapping with leaflet and htmlwidgets
 * Optimized for parallel processing support for large-scale simulations
-* Integrated into ['runoptGPP'](https://github.com/jngtz/runoptGPP) for grid search parameter optimization
+* Integrated into [`runoptGPP`](https://github.com/jngtz/runoptGPP) for grid search parameter optimization
 
 
 ## Installation
