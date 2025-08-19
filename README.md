@@ -24,6 +24,7 @@ or
 
 ```r
 remotes::install_github("jngtz/runoutSIM")
+```
 
 ## Examples
 
