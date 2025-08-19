@@ -24,3 +24,8 @@ or
 ```r
 remotes::install_github("jngtz/runoutSIM")
 ```
+
+## Citation
+If you use runoutSIM in your research, please cite: 
+
+Goetz, J. (2025). runoutSIM: An open-source R package for simulating mass movement runout and connectivity using random walks. GitHub Repository
