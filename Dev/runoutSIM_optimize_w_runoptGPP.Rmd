@@ -1,5 +1,5 @@
 ---
-title: "Parallel computing with runoutSIM"
+title: "Grid search optimization of runoutSIM with runoptGPP"
 author: "Jason Goetz"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -12,13 +12,14 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
-)
+  comment = "#>")
+library(here)
+knitr::opts_knit$set(root.dir = here())
 ```
 
 # Introduction
 
-[`runoptGPP`](https://github.com/jngtz/runoptGPP) is an R package developed for optimizing the random walk (path/dispersion) and PCM (distance) components of mass-movement runout simulations. It provides functions to perform grid search optimization, evaluate performance metrics, and visualize results.
+[`runoptGPP`](https://github.com/jngtz/runoptGPP) is an R package developed for optimizing the random walk (path/dispersion) and PCM (distance) components of mass-movement runout simulations. It provides functions to perform grid search optimization, evaluate performance metrics, and visualize results - with support for `runoutSIM`.
 
 The optimization follows a two-stage approach:
 
@@ -56,7 +57,7 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- rast("C:/GitProjects/runoutSIM/Dev/Data/elev_fillsinks_WangLiu.tif")
+dem <- rast("Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -64,8 +65,8 @@ aspect <- terrain(dem, "aspect", unit="radians")
 hill <- round(shade(slope, aspect, 40, 270, normalize = TRUE))
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("C:/GitProjects/runoutSIM/Dev/Data/debris_flow_source_points.shp")
-runout_polygons <- st_read("C:/GitProjects/runoutSIM/Dev/Data/debris_flow_runout_polygons.shp")
+source_points <- st_read("Data/debris_flow_source_points.shp")
+runout_polygons <- st_read("Data/debris_flow_runout_polygons.shp")
 
 # Plot input data
 plot(hill, col=grey(150:255/255), legend=FALSE,
@@ -79,6 +80,8 @@ plot(st_geometry(runout_polygons), add = TRUE)
 # Optimizing Random Walk Parameters
 
 ## Step 1: Define the parameter search space
+
+In our first stage of optimization, we will set up vectors to define our grid search space for the random walk runout path model component. This is an exhaustive list of the parameters that will be tested.
 
 To simulate runout *paths*, we define a parameter grid for:
 
@@ -103,7 +106,11 @@ rwslp_vec
 
 We use the `foreach` and `doParallel` packages to speed up model runs by distributing them across multiple CPU cores. For each mapped runout polygon, all combinations of parameters are evaluated using the `rwGridsearch()` function.
 
-```{r, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center'}
+Depending on the number of runout events and the grid search space size, this computation can take some time. The `rwGridsearch` function has an option `save_res = TRUE` that allows us to save the grid search results for each runout individually. This is useful in the case where processing fails since it avoids the need to re-run the grid search for all runout events.
+
+In this example we are creating a limited grid search space (i.e. only 4*4*4 possible parameter combinations) to reduce computational time.
+
+```{r, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center', eval = FALSE}
 library(foreach)
 library(raster)
 polyid_vec <- 1:nrow(source_points)
@@ -121,7 +128,7 @@ rw_gridsearch_multi  <-
     rwGridsearch(dem, slide_plys = runout_polygons, slide_src = source_points,
                  slide_id = poly_id, slp_v = rwslp_vec, ex_v = rwexp_vec, 
                  per_v = rwper_vec, gpp_iter = 1000, buffer_ext = 500, buffer_source = NULL,
-                 save_res = FALSE, plot_eval = FALSE)
+                 save_res = TRUE, plot_eval = FALSE)
     
   }
 
@@ -132,7 +139,12 @@ parallel::stopCluster(cl)
 
 We extract the optimal parameters across all runouts by aggregating their performance (here, using the median AUROC).
 
-```{r}
+```{r, include = FALSE}
+load("Data\\rw_gridsearch_multi.Rd")
+```
+
+
+```{r, warning=FALSE}
 rw_opt <- rwGetOpt(rw_gridsearch_multi, 
                    measure = median)
 rw_opt
@@ -147,10 +159,12 @@ We now define grid vectors for:
 -   `pcmmd`: mass-to-drag ratio (affects how far material travels)
 -   `pcmmu`: sliding friction coefficient
 
+In this example we are creating a limited grid search space (i.e. only 20*10 possible parameter combinations) to reduce computational time.
+
 ```{r}
 # Define PCM model grid seach space
-pcmmd_vec <- seq(20, 150, by=5) # mass-to-drag ratio (m)
-pcmmu_vec <- seq(0.04, 0.6, by=0.01) # sliding friction coefficient 
+pcmmd_vec <- seq(20, 140, by=20) # mass-to-drag ratio (m)
+pcmmu_vec <- seq(0.01, 0.1, by=0.01) # sliding friction coefficient 
 
 pcmmd_vec
 ```
@@ -159,9 +173,9 @@ pcmmd_vec
 
 Here, we re-use parallelization to optimize the PCM model using the previously selected random walk parameters. Each runout is simulated independently.
 
-```{r}
+```{r, eval = FALSE}
 # Run using parallelization
-cl <- parallel::makeCluster(4)
+cl <- parallel::detectCores() -2
 doParallel::registerDoParallel(cl)
 
 pcm_gridsearch_multi <-
@@ -170,7 +184,7 @@ pcm_gridsearch_multi <-
     pcmGridsearch(dem,
                   slide_plys = runout_polygons, slide_src = source_points, 
                   slide_id = poly_id, rw_slp = 40, rw_ex = 3, rw_per = 1.9, 
-                  pcm_mu_v = pcmmu_vec, pcm_md_v = 40,
+                  pcm_mu_v = pcmmu_vec, pcm_md_v = pcmmd_vec,
                   gpp_iter = 1000,
                   buffer_ext = NULL, buffer_source = NULL,
                   predict_threshold = 0.5, save_res = FALSE)
@@ -181,9 +195,13 @@ parallel::stopCluster(cl)
 
 ## Step 3: Extract optimal PCM parameters
 
-We find the PCM parameter set that results in the **lowest median relative error** across all simulated runouts. This gives us a regionally optimized distance model.
+We find the PCM parameter set that results in the **lowest median relative error** across all simulated runouts. This gives us a regionally optimized distance model. The median model performances across grid search space can be visualized using `plot_opt=TRUE`.
 
-```{r}
+```{r, include = FALSE}
+load("Data\\pcm_gridsearch_multi.Rd")
+```
+
+```{r, warning=FALSE, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center'}
 pcmGetOpt(pcm_gridsearch_multi, 
           performance = "relerr", 
           measure = "median", 
@@ -194,9 +212,9 @@ pcmGetOpt(pcm_gridsearch_multi,
 
 To evaluate the sensitivity of our optimal parameters to spatial sampling, we apply **spatial cross-validation** using k-means partitioning from the `sperrorest` package. This simulates training/testing under different spatial configurations.
 
-We run 5-fold cross-validation with 10 repetitions.
+We run 5-fold cross-validation with 10 repetitions using the results from the random walk and PCM grid searches. 
 
-```{r}
+```{r, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center', warning = FALSE}
 par(mfrow = c(1,2))
 rw_spcv <- rwSPCV(x = rw_gridsearch_multi, slide_plys = runout_polygons,
                   n_folds = 5, repetitions = 10)
