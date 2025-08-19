@@ -4,3 +4,8 @@
 ^Demo$
 ^Dev$
 ^Case_Study
+^doc$
+^Meta$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
