@@ -3,6 +3,15 @@ The `runoutSIM` R package is developed for regional-scale runout simulations usi
 * Debris flows
 * Snow avalanches
 
+**Features**
+* Random walk simulation with slope-based transition probabilities
+* Velocity modeling using Perla et al.'s (1980) friction law
+* Connectivity analysis to assess impact on downslope features
+* Allows easy workflow for source area prediction models (e.g., GAM, machine learning)
+* Interactive mapping with leaflet and htmlwidgets
+* Optimized for parallel processing support for large-scale simulations
+* Integrated into ['runoptGPP'](https://github.com/jngtz/runoptGPP) for grid search parameter optimization
+
 **Installation**
 
 You can install runoutSIM with:
