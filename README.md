@@ -33,7 +33,6 @@ remotes::install_github("jngtz/runoutSIM")
 [Parallel computing with runoutSIM]([https://jngtz.github.io/runoptGPP/articles/gpp_rw_pcm_regional_optimization.html](https://jngtz.github.io/runoutSIM/articles/runoutSIM_parallelization.html)
 
 [Optimizing runoutSIM parameters with runoptGPP](https://jngtz.github.io/runoutSIM/articles/runoutSIM_optimize_w_runoptGPP.html)
-```
 
 ## Contributing
 We welcome contributions! Please open an issue or submit a pull request. For major changes, start by discussing your ideas via an issue.
