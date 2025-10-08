@@ -91,7 +91,7 @@ leafmap(runout_polygons, opacity = 0.6) %>%
 plan(multisession, workers = parallel::detectCores() - 2)
 
 ## Define grid search space ####
-n_samples <- 50
+n_samples <- 100
 
 # Generate Latin Hypercube Samples for 5 parameters: 3 RW + 2 PCM
 lhs_combined <- randomLHS(n_samples, 5)
@@ -107,7 +107,7 @@ combined_samples <- data.frame(
   pcm_md = qunif(lhs_combined[,5], 20, 120)
 )
 
-save(combined_samples, file = "Dev/random_search_latin_hypercube.Rd")
+save(combined_samples, file = "Dev/test_random_search_latin_hypercube.Rd")
 ## Build an evaluation function ####
 
 evaluate_combined <- function(rw, pcm) {
@@ -165,6 +165,7 @@ evaluate_combined <- function(rw, pcm) {
 }
 
 ## Perform / run random search ####
+start_t <- Sys.time()
 
 combined_results <- future_lapply(1:nrow(combined_samples), function(k) {
   row <- as.list(combined_samples[k, ])
@@ -185,8 +186,12 @@ combined_results <- future_lapply(1:nrow(combined_samples), function(k) {
     median_relerr = res$median_relerr)
 })
 
+end_t <- Sys.time()
+end_t - start_t
+
 # Close clusters
-future:::ClusterRegistry("stop")
+#future:::ClusterRegistry("stop")
+future::plan("sequential") 
 
 # Convert results to a data frame
 combined_df <- do.call(rbind, lapply(combined_results, function(x) as.data.frame(as.list(x))))
@@ -200,7 +205,7 @@ combined_df$score <- combined_df$mean_roc - weight_len * combined_df$mean_length
 best_row <- combined_df[which.max(combined_df$score), ]
 best_params <- combined_df[which.max(combined_df$score), c("rw_slp","rw_ex","rw_per","pcm_mu","pcm_md")]
 
-save(combined_df, file = "Dev/random_grid_search.Rd")
+save(combined_df, file = "Dev/test_random_grid_search.Rd")
 
 (load("Dev/random_grid_search.Rd"))
 
