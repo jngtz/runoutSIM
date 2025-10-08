@@ -202,6 +202,7 @@ best_params <- combined_df[which.max(combined_df$score), c("rw_slp","rw_ex","rw_
 
 save(combined_df, file = "Dev/random_grid_search.Rd")
 
+(load("Dev/random_grid_search.Rd"))
 
 # Assess overall performance ###################################################
 

@@ -38,15 +38,11 @@ library(sf)
 library(doParallel)
 library(foreach)
 library(parallel)
-library(future.apply)
-
 
 # For data handling and visualization
 library(ggplot2)
 library(dplyr)
 
-# For random grid search optimization
-library(lhs)
 
 # Load spatial data  ###########################################################
 
@@ -84,128 +80,97 @@ leafmap(runout_polygons, opacity = 0.6) %>%
   leafmap(dem, palette = viridis::mako(10), opacity = 0.6)
 
 # Perform runout model optimization ############################################
-## Parallel setup ####
-
-plan(multisession, workers = parallel::detectCores() - 2)
 
 ## Define grid search space ####
-n_samples <- 50
+pcmmu_vec <- seq(0.04, 0.6, by=0.01)
+polyid_vec <- 1:nrow(source_points)
 
-# Generate Latin Hypercube Samples for 5 parameters: 3 RW + 2 PCM
-lhs_combined <- randomLHS(n_samples, 5)
+## Perform grid search optimization with parallelization ####
 
-combined_samples <- data.frame(
-  # RW parameters
-  rw_slp = qunif(lhs_combined[,1], 20, 40),
-  rw_ex  = qunif(lhs_combined[,2], 1.3, 3),
-  rw_per = qunif(lhs_combined[,3], 1.5, 2),
-  
-  # PCM parameters
-  pcm_mu = qunif(lhs_combined[,4], 0.05, 0.4),
-  pcm_md = qunif(lhs_combined[,5], 20, 120)
-)
+setwd("C:\\sda\\Workspace\\sedconnect\\backup")
 
-save(combined_samples, file = "Dev/random_search_latin_hypercube.Rd")
+n_cores <- detectCores() -2
+cl <- parallel::makeCluster(n_cores)
+doParallel::registerDoParallel(cl)
 
-## Build an evaluation function ####
-
-evaluate_combined <- function(rw, pcm) {
-  n_slides <- nrow(runout_polygons)
-  
-  # Pre-allocate results matrix
-  results <- matrix(NA, nrow = 3, ncol = n_slides,
-                    dimnames = list(c("roc", "length_error", "length_relerr"), NULL))
-  
-  for (i in 1:n_slides) {
-    out <- tryCatch({
-      pcmPerformance(
-        dem            = dem,
-        slide_plys     = runout_polygons,
-        slide_src      = source_points,
-        slide_id       = i,
-        rw_slp         = rw$rw_slp,
-        rw_ex          = rw$rw_ex,
-        rw_per         = rw$rw_per,
-        pcm_mu         = pcm$pcm_mu,
-        pcm_md         = pcm$pcm_md,
-        gpp_iter       = 1000,
-        buffer_source  = NULL,
-        plot_eval      = FALSE,
-        return_features= FALSE
-      )
-    }, error = function(e) NULL)
+pcm_gridsearch_multi <-
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
     
-    if (is.null(out)) {
-      results[, i] <- c(roc = 0, length_error = Inf, length_relerr = Inf)
-    } else {
-      results[, i] <- c(roc = out$roc, 
-                        length_error = out$length.error, 
-                        length_relerr = out$length.relerr)
-    }
+    pcmGridsearch(dem,
+                  slide_plys = runout_polygons, slide_src = source_points, slide_id = poly_id,
+                  rw_slp = 40, rw_ex = 3, rw_per = 1.9, # from Goetz et al 2021
+                  pcm_mu_v = pcmmu_vec, pcm_md_v = 40,
+                  gpp_iter = 1000,
+                  buffer_ext = NULL, buffer_source = 20,
+                  predict_threshold = 0.5, save_res = TRUE,
+                  plot_eval = FALSE,
+                  saga_lib = NULL)
+    
   }
-  
-  # Compute mean and median over all slides
-  mean_roc <- mean(results["roc", ], na.rm = TRUE)
-  mean_len <- mean(results["length_error", ], na.rm = TRUE)
-  mean_relerr <- mean(results["length_relerr", ], na.rm = TRUE)
-  
-  median_roc <- median(results["roc", ], na.rm = TRUE)
-  median_len <- median(results["length_error", ], na.rm = TRUE)
-  median_relerr <- median(results["length_relerr", ], na.rm = TRUE)
-  
-  return(list(
-    mean_roc = mean_roc,
-    mean_length_error = mean_len,
-    mean_relerr = mean_relerr,
-    median_roc = median_roc,
-    median_length_error = median_len,
-    median_relerr = median_relerr
-  ))
-}
 
-## Perform / run random search ####
-
-combined_results <- future_lapply(1:nrow(combined_samples), function(k) {
-  row <- as.list(combined_samples[k, ])
-  
-  res <- evaluate_combined(row, row)  # rw and pcm are from the same row
-  
-  c(sample_idx = k,
-    rw_slp = row$rw_slp,
-    rw_ex  = row$rw_ex,
-    rw_per = row$rw_per,
-    pcm_mu = row$pcm_mu,
-    pcm_md = row$pcm_md,
-    mean_roc = res$mean_roc,
-    mean_length_error = res$mean_length_error,
-    mean_relerr = res$mean_relerr,
-    median_roc = res$median_roc,
-    median_length_error = res$median_length_error,
-    median_relerr = res$median_relerr)
-})
-
-# Close clusters
-future:::ClusterRegistry("stop")
-
-# Convert results to a data frame
-combined_df <- do.call(rbind, lapply(combined_results, function(x) as.data.frame(as.list(x))))
+parallel::stopCluster(cl)
 
 
 # Get optimal (PCM) parameters #################################################
 
-# Compute a weighted score
-weight_len <- 2
-combined_df$score <- combined_df$mean_roc - weight_len * combined_df$mean_length_error / max(combined_df$mean_length_error, 1e-6)
+pcm_gridsearch_multi <- list()
+files <- list.files(pattern = "result_pcm_gridsearch_")
+for (i in 1:length(files)) {
+  res_nm <- paste("result_pcm_gridsearch_", i, ".Rd", 
+                  sep = "")
+  res_obj_nm <- load(res_nm)
+  result_pcm <- get(res_obj_nm)
+  pcm_gridsearch_multi[[i]] <- result_pcm
+}
 
-# Find best combination 
-best_row <- combined_df[which.max(combined_df$score), ]
-best_params <- combined_df[which.max(combined_df$score), c("rw_slp","rw_ex","rw_per","pcm_mu","pcm_md")]
 
-save(combined_df, file = "Dev/random_grid_search.Rd")
+pcm_opt <- pcmGetOpt(pcm_gridsearch_multi, performance = "relerr", 
+                     measure = "median", plot_opt = FALSE, from_save = TRUE)
+pcm_opt
 
-(load("Dev/random_grid_search.Rd"))
+save(pcm_opt, file = "pcm_opt_params.Rd")
+save(pcm_gridsearch_multi, file = "pcm_gridsearch_multi.Rd")
 
-# Assess overall performance ###################################################
+# Validate model performance ###################################################
+
+# Create the plot of median relative error to sliding friction coefficient 
+# with IQR for uncertainty
+
+grid_res <- data.frame(
+  mu = as.numeric(rownames(pcmGetGrid(performance = "relerr", measure = "median", from_save = TRUE))),
+  relerr_median = pcmGetGrid(performance = "relerr", measure = "median", from_save = TRUE)[,1],
+  error_median = pcmGetGrid(performance = "error", measure = "median", from_save = TRUE)[,1],
+  abs_error_median = abs(pcmGetGrid(performance = "error", measure = "median", from_save = TRUE)[,1]),
+  iqr = pcmGetGrid(performance = "relerr", measure = "IQR", from_save = TRUE)[,1]
+)
+
+
+grid_res <- grid_res %>%
+  mutate(
+    ymin = relerr_median - iqr / 2,
+    ymax = relerr_median + iqr / 2
+  )
+
+# Plot optimization results
+ggplot(grid_res, aes(x = mu, y = relerr_median)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "gray80", alpha = 0.5) +
+  geom_line(color = "#19191a", linewidth = 0.9) +
+  geom_point(color = "#19191a", size = 1.5) +
+  scale_x_continuous(breaks = seq(0, 2, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+  labs(
+    x = expression("Sliding friction coefficient (" * mu * ")"),
+    y = "Median relative runout distance error"
+  ) +
+  theme_classic(base_size = 10)
+
+
+pcm_spcv <- pcmSPCV(pcm_gridsearch_multi, slide_plys = runout_polygons,
+                    n_folds = 5, repetitions = 100, from_save = FALSE)
+
+freq_pcm <- pcmPoolSPCV(pcm_spcv, plot_freq = FALSE)
+freq_pcm
+
 
 # Retrieve overall performance
 
@@ -215,19 +180,18 @@ doParallel::registerDoParallel(cl)
 
 results_df <- foreach(
   i = seq_len(nrow(runout_polygons)),
-  .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim'),
-  .export = c("dem", "runout_polygons", "source_points", "best_params")) %dopar% {
+  .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
     out <- 
       pcmPerformance(
         dem            = dem,
         slide_plys     = runout_polygons,
         slide_src      = source_points,
         slide_id       = i,
-        rw_slp         = best_params$rw_slp,
-        rw_ex          = best_params$rw_ex,
-        rw_per         = best_params$rw_per,
-        pcm_mu         = best_params$pcm_mu,
-        pcm_md         = best_params$pcm_md,
+        rw_slp         = 40,
+        rw_ex          = 3,
+        rw_per         = 1.9,
+        pcm_mu         = as.numeric(pcm_opt$pcm_mu),
+        pcm_md         = 40,
         gpp_iter       = 1000,
         buffer_ext     = NULL,
         buffer_source  = 20,
@@ -240,7 +204,7 @@ results_df
 
 parallel::stopCluster(cl)
 
-save(results_df, file = "Dev/random_search_runoutSim_individual_performance.Rd")
+save(results_df, file = "runoutSim_individual_performance.Rd")
 
 ## Calculate runout error ####
 runout_polygons$sim_roc <- sapply(results_df, function(x) x$roc)
@@ -254,7 +218,7 @@ IQR(runout_polygons$sim_length_relerror)
 median(runout_polygons$sim_length_error)
 
 
-png(filename="C:/GitProjects/runoutSim/Case_Study/Figures/random_search_hist_error_plots.png", res = 300, width = 7.5, height = 6,
+png(filename="C:/GitProjects/runoutSim/Case_Study/Figures/hist_error_plots.png", res = 300, width = 7.5, height = 6,
     units = "in", pointsize = 11)
 
 par(family = "Arial", mfrow = c(2,2), mar = c(4, 3, 0.5, 0.5),
@@ -280,6 +244,69 @@ dev.off()
 
 library(patchwork)  # or use gridExtra if you prefer
 
+# Individual plots
+p1 <- ggplot(grid_res, aes(x = mu, y = relerr_median)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "gray80", alpha = 0.5) +
+  geom_line(color = "#19191a", linewidth = 0.7) +
+  geom_point(color = "#19191a", size = 0.7) +
+  scale_x_continuous(breaks = seq(0, 2, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+  labs(
+    x = expression("Sliding friction coefficient (" * mu * ")"),
+    y = "Median relative runout distance error"
+  ) +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+p2 <- ggplot(runout_polygons, aes(x = sim_length_relerror)) +
+  geom_histogram(bins = 40, fill = "gray70", color = "black") +
+  labs(x = "Runout length relative error", y = "Frequency") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+p3 <- ggplot(runout_polygons, aes(x = sim_length_error)) +
+  geom_histogram(bins = 40, fill = "gray70", color = "black") +
+  labs(x = "Runout length error (m)", y = "Frequency") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+p4 <- ggplot(runout_polygons, aes(x = sim_length, y = length)) +
+  geom_point(shape = 20) +
+  labs(x = "Simulated runout length (m)",
+       y = "Observed runout length (m)") +
+  theme_light() +
+  theme(legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6),
+        legend.key.width = unit(0.5, "cm"),
+        text = element_text(size = 7), 
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+# Save combined figure
+perf_opt_plot <- (p1 | p2) / (p3 | p4)
+perf_opt_plot <- perf_opt_plot + plot_annotation(tag_levels = list(c('(a)', '(b)', '(c)', '(d)'))) &
+  theme(plot.tag.position = c(0, 1),
+        plot.tag = element_text(size = 9, hjust = 0, vjust = 0, face = 'bold'))
+perf_opt_plot
+
+ggsave("C:/GitProjects/runoutSim/Case_Study/Figures/hist_error_plots.png",
+       plot = perf_opt_plot,
+       width = 170, height = 140, units = "mm", dpi = 300)
 
 # Run model from training source ###############################################
 
@@ -336,7 +363,7 @@ packed_dem <- wrap(dem_terra)
 cl <- makeCluster(n_cores, type = "PSOCK") # Open clusters
 
 
-clusterExport(cl, varlist = c("packed_dem", "best_params"))
+clusterExport(cl, varlist = c("packed_dem"))
 
 # Load required packages to each cluster
 clusterEvalQ(cl, {
@@ -348,11 +375,11 @@ clusterEvalQ(cl, {
 multi_sim_paths <- parLapply(cl, source_l, function(x) {
   
   runoutSim(dem = unwrap(packed_dem), xy = x, 
-            mu = best_params$pcm_mu, 
-            md = best_params$pcm_md, 
-            slp_thresh = best_params$rw_slp, 
-            exp_div = best_params$rw_ex, 
-            per_fct = best_params$rw_per, 
+            mu = 0.08, 
+            md = 40, 
+            slp_thresh = 40, 
+            exp_div = 3, 
+            per_fct = 1.9, 
             walks = 1000)
 })
 
@@ -373,8 +400,8 @@ leafmap(runout_polygons, label = "Runout observations", opacity = .35) %>%
   leafmap(source_points, color = "red", label = "Runout source") 
 
 ## Export runout modelling results (rasters) ####
-writeRaster(trav_prob, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Figures\\randsearch_opt_runout_trav_ecdf_prob.tif")
-writeRaster(trav_vel, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Figures\\randsearch_runout_trav_vel.tif")
+writeRaster(trav_prob, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\pcm_mu_opt_runout_trav_ecdf_prob.tif")
+writeRaster(trav_vel, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\pcm_mu_opt_runout_trav_vel.tif")
 
 
 
