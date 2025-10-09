@@ -1,10 +1,10 @@
 ---
-title: "A light introduction to runoutSIM"
+title: "A basic introduction to runoutSIM"
 author: "Jason Goetz"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{A light introduction to runoutSIM}
+  %\VignetteIndexEntry{A basic introduction to runoutSIM}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -55,7 +55,7 @@ bnd_catchment <- st_read("C:/GitProjects/runoutSIM/Dev/Data/basin_rio_olivares.s
 
 # Creating interactive maps
 
-Using the `leafmap()` function, we can quickly create an interactive leaflet map for viewing the data. Similar to `dplyr`, we use the `%>%` operator to pipe together multiple `leafmap()` calls to create a combined leaflet map with multiple layers.
+Using the `leafmap()` function, we can quickly create an interactive leaflet map for viewing the data. We use the `%>%` operator to pipe together multiple `leafmap()` calls to create a combined leaflet map with multiple layers.
 
 **Tip:** `leafmap()` has the option to interactively query raster values with a mouse hover. This option is turned on by default, but can result in a considerable increase in the file size of the leaflet widget (e.g. when exported for sharing). It is recommended to have `add_image_query = FALSE` when saving / exporting the leaflet map.
 

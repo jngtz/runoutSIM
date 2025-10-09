@@ -1,5 +1,6 @@
 require(leaflet)
 require(leafem)
+require(viridis)
 
 #' Plot Spatial Data Using Leaflet
 #'

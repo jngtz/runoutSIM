@@ -6,7 +6,7 @@ Authors@R:
     person("Jia", "Huang", , "huan7147@mylaurier.ca", role = c("ctb")))
 Description: Geospatial tools for simulating mass-movement runout using random 
   walk methods on digital elevation models (DEMs) and assessing connectivity to spatial features.
-License: MIT + LICENSE
+License: MIT + file LICENSE
 URL: https://github.com/jngtz/runoutSim
 Depends:
     methods,
@@ -17,7 +17,8 @@ Imports:
     leafem,
     htmlwidgets,
     raster,
-    sf
+    sf,
+    viridis
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
