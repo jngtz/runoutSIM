@@ -122,11 +122,11 @@ multi_sim_paths <- parLapply(cl, source_l, function(x) {
   local_dem <- terra::unwrap(packed_dem)
   
   runoutSim(dem = local_dem, xy = x, 
-            mu = 0.08, 
-            md = 40, 
+            mu = 0.06, 
+            md = 45, 
             slp_thresh = 40, 
-            exp_div = 3, 
-            per_fct = 1.9, 
+            exp_div = 2.1, 
+            per_fct = 1.6, 
             walks = 1000,
             connect_feature = feature_mask,
             source_connect = TRUE)
@@ -136,16 +136,17 @@ print(run_time <- end_time - start_time) # 18.3 hours for 656,853 source cells
 
 
 
-save(multi_sim_paths, file = "runoutSim_wConnectFeatures.Rd")
+save(multi_sim_paths, file = "runoutSim_wConnectFeatures_randomgridsearch.Rd")
 stopCluster(cl) # Close clusters
 
-(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures.Rd"))
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures_randomgridsearch.Rd"))
 
 conn <- connToRaster(multi_sim_paths, dem)
 
 # Explore distribution of grid cells connected to the main river channel and stream network
 density(conn)
 
+r = conn
 high_conn <- sum(values(r)>=0.8, na.rm = TRUE)
 no_conn <- sum(values(r)==0, na.rm = TRUE)
 total_cells <- sum(values(r)>=0, na.rm = TRUE)
@@ -162,9 +163,7 @@ high_conn_km2/catch_area_km2
 no_conn_km2/catch_area_km2
 total_area_km2/catch_area_km2
 
-# paths
-paths_km2 <- (sum(!is.na(values(paths)))) * res(conn)[1]*res(conn)[2] / 1000000
-paths_km2 / catch_area_km2
+
 
 leafmap(conn)
 
@@ -172,6 +171,9 @@ paths <- walksToRaster(multi_sim_paths, method = "freq", dem)
 vel <- velocityToRaster(multi_sim_paths, dem)
 rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
 
+# paths
+paths_km2 <- (sum(!is.na(values(paths)))) * res(conn)[1]*res(conn)[2] / 1000000
+paths_km2 / catch_area_km2
 
 src_pred <- rast("C:\\sda\\GitProjects\\runoutSim\\Data\\src_pred.tif")
 src_pred <- mask(src_pred, source_areas)

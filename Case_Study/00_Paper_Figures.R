@@ -59,8 +59,8 @@ buffer_stream <- st_buffer(stream_channels, dist = 30)
 drainage_network <- st_sf(st_union(st_union(st_geometry(river_channel), st_geometry(buffer_stream), is_coverage = TRUE)))
 
 
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
-                      slp_thresh = 35, exp_div = 2.5, per_fct = 1.95, walks = 1000)
+sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.06, md = 45, 
+                      slp_thresh = 40, exp_div = 2.1, per_fct = 1.6, walks = 1000)
 
 # Convert paths to raster with cell transition frequencies
 paths_raster <- walksToRaster(sim_paths, dem)
@@ -189,7 +189,7 @@ ggsave("Case_Study/Figures/eg_single_maps.png", plot = m.output_single, width = 
 
 # Connectivity and runout map ##################################################
 
-(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures.Rd"))
+(load("C:\\sda\\Workspace\\sedconnect\\runoutSim_wConnectFeatures_randomgridsearch.Rd"))
 library(ggnewscale) # Allow multiple scales in a map
 library(ggspatial) # for scale bar
 
@@ -197,9 +197,9 @@ conn <- connToRaster(multi_sim_paths, dem)
 vel <- velocityToRaster(multi_sim_paths, dem)
 rel_paths <- rasterCdf(walksToRaster(multi_sim_paths, method = "freq", dem))
 
-writeRaster(conn, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\regional_runout_conn.tif")
-writeRaster(vel, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\regional_runout_vel.tif")
-writeRaster(rel_paths, filename = "C:\\GitProjects\\runoutSim\\Case_Study\\Results\\regional_runout_freq_quant.tif")
+writeRaster(conn, filename = "C:\\sda\\GitProjects\\runoutSim\\Case_Study\\Figures\\regional_runout_conn_rgs.tif")
+writeRaster(vel, filename = "C:\\sda\\GitProjects\\runoutSim\\Case_Study\\Figures\\regional_runout_vel_rgs.tif")
+writeRaster(rel_paths, filename = "C:\\sda\\GitProjects\\runoutSim\\Case_Study\\Figures\\regional_runout_freq_quant_rgs.tif")
 
 
 # Plot conn
@@ -478,11 +478,13 @@ m2.reg_results <- (m2.paths + m2.conn) + plot_annotation(tag_levels = list(c('(a
         plot.tag = element_text(size = 9, hjust = 0, vjust = 0, face = 'bold'))
 m2.reg_results
 
-ggsave("Case_Study/Figures/regional_maps_runconn.png", plot = m2.reg_results, width = 170, height = 180, units = "mm", dpi = 300)
+
+setwd("C:\\sda\\GitProjects\\runoutSim\\Case_Study\\Figures\\")
+ggsave("regional_maps_runconn_rgs.png", plot = m2.reg_results, width = 170, height = 180, units = "mm", dpi = 300)
 
 
 
-m.srcprob <- ggplot() +
+2m.srcprob <- ggplot() +
   geom_tile(data=df_hill, aes(x=x, y=y, fill = hillshade),
             show.legend = FALSE) +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
@@ -546,5 +548,5 @@ m2.pred_class <- (m.srcprob + m.srcarea) + plot_annotation(tag_levels = list(c('
         plot.tag = element_text(size = 9, hjust = 0, vjust = 0, face = 'bold'))
 m2.pred_class
 
-ggsave("Case_Study/Figures/regional_maps_src_class.png", plot = m2.pred_class, width = 170, height = 180, units = "mm", dpi = 300)
+ggsave("regional_maps_src_class_rgs.png", plot = m2.pred_class, width = 170, height = 180, units = "mm", dpi = 300)
 
