@@ -59,8 +59,8 @@ buffer_stream <- st_buffer(stream_channels, dist = 30)
 drainage_network <- st_sf(st_union(st_union(st_geometry(river_channel), st_geometry(buffer_stream), is_coverage = TRUE)))
 
 
-sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.06, md = 45, 
-                      slp_thresh = 40, exp_div = 2.1, per_fct = 1.6, walks = 1000)
+sim_paths = runoutSim(dem = dem, st_coordinates(source_point), mu = 0.08, md = 140, 
+                      slp_thresh = 35, exp_div = 2.5, per_fct = 1.95, walks = 1000)
 
 # Convert paths to raster with cell transition frequencies
 paths_raster <- walksToRaster(sim_paths, dem)
