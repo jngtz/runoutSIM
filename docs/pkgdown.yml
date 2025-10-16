@@ -1,0 +1,11 @@
+pandoc: 3.1.11
+pkgdown: 2.1.1
+pkgdown_sha: ~
+articles:
+  runoutSIM_basic_intro: runoutSIM_basic_intro.html
+  runoutSIM_optimize_w_runoptGPP: runoutSIM_optimize_w_runoptGPP.html
+  runoutSIM_parallelization: runoutSIM_parallelization.html
+last_built: 2025-10-16T21:40Z
+urls:
+  reference: https://jngtz.github.io/runoutSIM/reference
+  article: https://jngtz.github.io/runoutSIM/articles

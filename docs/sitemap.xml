@@ -1,0 +1,27 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://jngtz.github.io/runoutSIM/404.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/articles/index.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/articles/runoutSIM_basic_intro.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/articles/runoutSIM_optimize_w_runoptGPP.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/articles/runoutSIM_parallelization.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/authors.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/index.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/LICENSE-text.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/adjCells.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/adjRowCol.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/cdfProb.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/connToRaster.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/elevQuantile.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/euclideanDistance.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/index.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/leafmap.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/makeConnFeature.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/makeSourceList.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/pcm.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/rasterCdf.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/runoutSim.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/sourceConnect.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/velocityToRaster.html</loc></url>
+<url><loc>https://jngtz.github.io/runoutSIM/reference/walksToRaster.html</loc></url>
+</urlset>
+
