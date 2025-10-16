@@ -165,7 +165,7 @@ river_channel <- st_read("C:/GitProjects/runoutSIM/Data/river_channel.shp")
 feature_mask <- makeConnFeature(river_channel, dem)
 ```
 
-Now that we have a connectivity feature, we can re-run `runoutSIM()` with some additional parameter options: `source_connect = TRUE` allowing to calculate a connectivity probability and `connect_feature = feature_mask`.
+Now that we have a connectivity feature, we can re-run `runoutSim()` with some additional parameter options: `source_connect = TRUE` allowing to calculate a connectivity probability and `connect_feature = feature_mask`.
 
 ```{r, fig.height=7, fig.width = 5, fig.align='center'}
 sim_paths = runoutSim(dem = dem, 

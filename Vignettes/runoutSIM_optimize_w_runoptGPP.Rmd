@@ -4,7 +4,7 @@ author: "Jason Goetz"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Parallel computing with runoutSIM}
+  %\VignetteIndexEntry{Grid search optimization of runoutSIM with runoptGPP}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -123,7 +123,7 @@ doParallel::registerDoParallel(cl)
 dem <- raster(dem)
 
 rw_gridsearch_multi  <-
-  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSIM')) %dopar% {
     
     rwGridsearch(dem, slide_plys = runout_polygons, slide_src = source_points,
                  slide_id = poly_id, slp_v = rwslp_vec, ex_v = rwexp_vec, 
@@ -179,7 +179,7 @@ cl <- parallel::detectCores() -2
 doParallel::registerDoParallel(cl)
 
 pcm_gridsearch_multi <-
-  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSIM')) %dopar% {
     
     pcmGridsearch(dem,
                   slide_plys = runout_polygons, slide_src = source_points, 
