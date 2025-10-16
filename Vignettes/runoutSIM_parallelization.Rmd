@@ -32,7 +32,7 @@ We’ll begin by loading the required packages and reading a digital elevation m
 
 ```{r,fig.show='hold', fig.height=7, fig.width = 5, fig.align='center'}
 # load packages
-library(runoutSim)
+library(runoutSIM)
 library(terra)
 library(sf)
 
@@ -83,7 +83,7 @@ clusterExport(cl, varlist = c("packed_dem"))
 # Load required packages to each cluster
 clusterEvalQ(cl, {
   library(terra)
-  library(runoutSim)
+  library(runoutSIM)
 })
 
 # Compute multiple runout simulations from source cells

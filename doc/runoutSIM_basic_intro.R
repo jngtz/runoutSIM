@@ -11,7 +11,7 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- rast("C:/GitProjects/runoutSIM/Dev/Data/elev_fillsinks_WangLiu.tif")
+dem <- rast("C:/GitProjects/runoutSIM/Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -19,11 +19,11 @@ aspect <- terrain(dem, "aspect", unit="radians")
 hill <- shade(slope, aspect, 40, 270)
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("C:/GitProjects/runoutSIM/Dev/Data/debris_flow_source_points.shp")
-runout_polygons <- st_read("C:/GitProjects/runoutSIM/Dev/Data/debris_flow_runout_polygons.shp")
+source_points <- st_read("C:/GitProjects/runoutSIM/Data/debris_flow_source_points.shp")
+runout_polygons <- st_read("C:/GitProjects/runoutSIM/Data/debris_flow_runout_polygons.shp")
 
 # Load basin boundary
-bnd_catchment <- st_read("C:/GitProjects/runoutSIM/Dev/Data/basin_rio_olivares.shp")
+bnd_catchment <- st_read("C:/GitProjects/runoutSIM/Data/basin_rio_olivares.shp")
 
 
 ## ----fig.show='hold', out.width="100%", out.height="500px"--------------------
@@ -85,7 +85,7 @@ plot(source_point, add = TRUE)
 
 ## -----------------------------------------------------------------------------
 # Load river channel polygon (vector)
-river_channel <- st_read("C:/GitProjects/runoutSIM/Dev/Data/river_channel.shp")
+river_channel <- st_read("C:/GitProjects/runoutSIM/Data/river_channel.shp")
 
 # Create a connectivity feature for runoutSim that matches the input DEM
 feature_mask <- makeConnFeature(river_channel, dem)

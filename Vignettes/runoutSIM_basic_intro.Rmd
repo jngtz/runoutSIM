@@ -32,7 +32,7 @@ Spatial handling in the `runoutSIM` package is supported by the `sf` (vector dat
 
 ```{r, fig.show='hold'}
 # load packages
-library(runoutSim)
+library(runoutSIM)
 library(terra)
 library(sf)
 

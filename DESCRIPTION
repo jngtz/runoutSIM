@@ -1,6 +1,6 @@
-Package: runoutSim
-Title: Spatial Random Walk Simulation of Mass-Movement Runout and Connectivity in R
-Version: 0.0.0.9000
+Package: runoutSIM
+Title: Spatial Random Walk Simulation of Landslide Runout and Connectivity in R
+Version: 1.0
 Authors@R:
     c(person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre")),
     person("Jia", "Huang", , "huan7147@mylaurier.ca", role = c("ctb")))
