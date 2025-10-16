@@ -7,7 +7,7 @@ Authors@R:
 Description: Geospatial tools for simulating mass-movement runout using random 
   walk methods on digital elevation models (DEMs) and assessing connectivity to spatial features.
 License: MIT + file LICENSE
-URL: https://github.com/jngtz/runoutSim
+URL: https://github.com/jngtz/runoutSim, https://jngtz.github.io/runoutSIM/
 Depends:
     methods,
     stats
