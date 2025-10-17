@@ -12,6 +12,7 @@ The `runoutSIM` R package is developed for regional-scale runout simulations usi
 * Optimized for parallel processing support for large-scale simulations
 * Integrated into [`runoptGPP`](https://github.com/jngtz/runoptGPP) for grid search parameter optimization
 
+<img src="https://github.com/jngtz/runoutSIM/blob/main/Case_Study/Figures/RStudio_light.PNG" width="500">
 
 ## Installation
 
