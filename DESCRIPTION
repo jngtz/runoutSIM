@@ -1,5 +1,5 @@
 Package: runoutSIM
-Title: Spatial Random Walk Simulation of Landslide Runout and Connectivity in R
+Title: Landslide Runout and Connectivity Simulation with Random Walks
 Version: 1.0
 Authors@R:
     c(person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre")),
