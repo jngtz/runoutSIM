@@ -34,8 +34,6 @@ remotes::install_github("jngtz/runoutSIM")
 
 [Optimizing runoutSIM parameters with runoptGPP](https://jngtz.github.io/runoutSIM/articles/runoutSIM_optimize_w_runoptGPP.html)
 
-## Contributing
-We welcome contributions! Please open an issue or submit a pull request. For major changes, start by discussing your ideas via an issue.
 
 ## Citation
 If you use runoutSIM in your research, please cite: 
