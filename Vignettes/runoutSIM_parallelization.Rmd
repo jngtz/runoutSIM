@@ -37,7 +37,7 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- rast("C:/GitProjects/runoutSIM/Data/elev_fillsinks_WangLiu.tif")
+dem <- rast("../Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -45,8 +45,8 @@ aspect <- terrain(dem, "aspect", unit="radians")
 hill <- round(shade(slope, aspect, 40, 270, normalize = TRUE))
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("C:/GitProjects/runoutSIM/Data/debris_flow_source_points.shp")
-runout_polygons <- st_read("C:/GitProjects/runoutSIM/Data/debris_flow_runout_polygons.shp")
+source_points <- st_read("../Data/debris_flow_source_points.shp")
+runout_polygons <- st_read("../Data/debris_flow_runout_polygons.shp")
 
 # Plot input data
 plot(hill, col=grey(150:255/255), legend=FALSE,

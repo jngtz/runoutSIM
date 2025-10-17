@@ -12,9 +12,8 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>")
-library(here)
-knitr::opts_knit$set(root.dir = here())
+  comment = "#>"
+)
 ```
 
 # Introduction
@@ -57,7 +56,7 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- rast("Data/elev_fillsinks_WangLiu.tif")
+dem <- rast("../Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -65,8 +64,8 @@ aspect <- terrain(dem, "aspect", unit="radians")
 hill <- round(shade(slope, aspect, 40, 270, normalize = TRUE))
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("Data/debris_flow_source_points.shp")
-runout_polygons <- st_read("Data/debris_flow_runout_polygons.shp")
+source_points <- st_read("../Data/debris_flow_source_points.shp")
+runout_polygons <- st_read("../Data/debris_flow_runout_polygons.shp")
 
 # Plot input data
 plot(hill, col=grey(150:255/255), legend=FALSE,
@@ -140,7 +139,7 @@ parallel::stopCluster(cl)
 We extract the optimal parameters across all runouts by aggregating their performance (here, using the median AUROC).
 
 ```{r, include = FALSE}
-load("Data\\rw_gridsearch_multi.Rd")
+load("../Data/rw_gridsearch_multi.Rd")
 ```
 
 
@@ -198,7 +197,7 @@ parallel::stopCluster(cl)
 We find the PCM parameter set that results in the **lowest median relative error** across all simulated runouts. This gives us a regionally optimized distance model. The median model performances across grid search space can be visualized using `plot_opt=TRUE`.
 
 ```{r, include = FALSE}
-load("Data\\pcm_gridsearch_multi.Rd")
+load("../Data/pcm_gridsearch_multi.Rd")
 ```
 
 ```{r, warning=FALSE, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center'}
