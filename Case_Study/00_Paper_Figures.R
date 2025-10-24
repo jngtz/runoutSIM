@@ -118,7 +118,7 @@ source_df <- as.data.frame(source_point, xy = TRUE)
 # Plot traversal probability
 m.freq <- ggplot(df_freq, aes(x = x, y = y, fill = freq)) +
   geom_raster() +
-  scale_fill_viridis(name = "Traverse\nfrequency", na.value = "transparent",
+  viridis::scale_fill_viridis(name = "Traverse\nfrequency", na.value = "transparent",
                      direction = 1) +
   coord_equal() +
   theme_void() +
@@ -137,7 +137,7 @@ m.freq <- ggplot(df_freq, aes(x = x, y = y, fill = freq)) +
 # Plot ECDF
 m.ecdf <- ggplot(df_ecdf, aes(x = x, y = y, fill = ecdf)) +
     geom_raster() +
-    scale_fill_viridis(name = "Traverse\nprobability", 
+    viridis::scale_fill_viridis(name = "Traverse\nprobability", 
                        na.value = "transparent",
                      direction = 1) +
     coord_equal() +
@@ -156,7 +156,7 @@ m.ecdf <- ggplot(df_ecdf, aes(x = x, y = y, fill = ecdf)) +
 
 m.vel <- ggplot(df_vel, aes(x = x, y = y, fill = max_velocity_ms)) +
   geom_raster() +
-  scale_fill_viridis(name = "Maximum\nvelocity\n(m/s)", 
+  viridis::scale_fill_viridis(name = "Maximum\nvelocity\n(m/s)", 
                      option = "plasma", 
                      direction =  1, 
                      na.value = "transparent") +
@@ -216,7 +216,7 @@ m.srcprob <- ggplot() +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_srcprob, aes(x = x, y = y, fill = lyr1)) +
-  scale_fill_viridis(name = "Source\nProbability\n", 
+  viridis::scale_fill_viridis(name = "Source\nProbability\n", 
                      option = "viridis", direction = -1,
                      alpha = 0.7, na.value = "transparent") +
   geom_sf(data = drainage_network, 
@@ -268,7 +268,7 @@ m.conn <- ggplot() +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_conn, aes(x = x, y = y, fill = connectivity_prob)) +
-  scale_fill_viridis(name = "Connectivity\nprobability\n", 
+  viridis::scale_fill_viridis(name = "Connectivity\nprobability\n", 
                      option = "viridis", direction = -1,
                      alpha = 0.7, na.value = "transparent") +
   geom_sf(data = drainage_network, 
@@ -296,7 +296,7 @@ m.paths <- ggplot() +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_path, aes(x = x, y = y, fill = freq)) +
-  scale_fill_viridis(name = "Traverse\nfrequency\n(quantile)", alpha = 0.7, 
+  viridis::scale_fill_viridis(name = "Traverse\nfrequency\n(quantile)", alpha = 0.7, 
                      direction = -1, na.value = "transparent") +
   geom_sf(data = drainage_network, 
           fill = alpha("#99d2ff", 0.5), 
@@ -419,7 +419,7 @@ m2.conn <- ggplot() +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_conn, aes(x = x, y = y, fill = connectivity_prob)) +
-  scale_fill_viridis(name = "Connectivity\nprobability\n", 
+  viridis::scale_fill_viridis(name = "Connectivity\nprobability\n", 
                      option = "viridis", direction = -1,
                      alpha = 0.7, na.value = "transparent") +
   geom_sf(data = drainage_network, 
@@ -450,7 +450,7 @@ m2.paths <- ggplot() +
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_path, aes(x = x, y = y, fill = freq)) +
-  scale_fill_viridis(name = "Traverse\nfrequency\n(quantile)", alpha = 0.7, 
+  viridis::scale_fill_viridis(name = "Traverse\nfrequency\n(quantile)", alpha = 0.7, 
                      direction = -1, na.value = "transparent") +
   geom_sf(data = drainage_network, 
           fill = alpha("#99d2ff", 0.5), 
@@ -490,7 +490,7 @@ ggsave("regional_maps_runconn_rgs.png", plot = m2.reg_results, width = 170, heig
   scale_fill_gradient(high = "white", low = "#696969", na.value = "#FFFFFF") +
   new_scale("fill") +
   geom_tile(data = df_srcprob, aes(x = x, y = y, fill = lyr1)) +
-  scale_fill_viridis(name = "Source cell\nprobability\n", 
+  viridis::scale_fill_viridis(name = "Source cell\nprobability\n", 
                      option = "viridis", direction = -1,
                      alpha = 0.7, na.value = "transparent") +
   geom_sf(data = drainage_network, 
