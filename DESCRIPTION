@@ -9,7 +9,6 @@ Description: Geospatial tools for simulating mass-movement runout using random
 License: MIT + file LICENSE
 URL: https://github.com/jngtz/runoutSim, https://jngtz.github.io/runoutSIM/
 Depends:
-    methods,
     stats
 Imports: 
     terra,
@@ -18,6 +17,7 @@ Imports:
     htmlwidgets,
     raster,
     sf,
+    methods,
     viridis
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
