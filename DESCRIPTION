@@ -4,6 +4,7 @@ Version: 1.0
 Authors@R:
     c(person("Jason", "Goetz", , "jgoetz@wlu.ca", role = c("aut", "cre")),
     person("Jia", "Huang", , "huan7147@mylaurier.ca", role = c("ctb")))
+Maintainer: Jason Goetz <jgoetz@wlu.ca>
 Description: Geospatial tools for simulating mass-movement runout using random 
   walk methods on digital elevation models (DEMs) and assessing connectivity to spatial features.
 License: MIT + file LICENSE
