@@ -491,7 +491,7 @@ makeSourceList <- function(source_xy)
     
   } else {
     
-    lapply(seq_len(nrow(source_xy)), function(i) matrix(source_xy[i, ], ncol = 2))
+    source_l <- lapply(seq_len(nrow(source_xy)), function(i) matrix(source_xy[i, ], ncol = 2))
     
   }
   
