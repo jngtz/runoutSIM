@@ -65,9 +65,13 @@ sourceConnect <- function(sim_paths, feature_mask, trials = NULL) {
   for (i in 1:N_total) {
     path <- sim_paths[[i]]  # Get the current path
     
+    vals <- feature_mask[cbind(path[,1], path[,2])]
+    
+    #print(vals)
     # Check if the path intersects the feature (assuming feature_mask is a matrix)
-    if (any(feature_mask[path[, 1], path[, 2]] == 1)) {
+    if (any(vals == 1)) {
       N_intersect <- N_intersect + 1
+      #print(i)
     }
   }
   
@@ -76,5 +80,4 @@ sourceConnect <- function(sim_paths, feature_mask, trials = NULL) {
   
   return(P_connect)
 }
-
 
