@@ -25,7 +25,7 @@
 # Load required packages #######################################################
 
 # For runout path simulation and optimization
-library(runoutSim)
+library(runoutSIM)
 #remotes::install_github("jngtz/runoptGPP")
 library(runoptGPP)
 
@@ -62,7 +62,7 @@ hill <- shade(slope, aspect, 40, 270)
 # Load runout source points and polygons
 source_points <- st_read("Data/debris_flow_source_points.shp")
 source_points$run_id <- 1:nrow(source_points)
-runout_polygons <- st_read("Dev/Data/debris_flow_runout_polygons.shp")
+runout_polygons <- st_read("Data/debris_flow_runout_polygons.shp")
 runout_polygons$run_id <- 1:nrow(runout_polygons)
 
 # Add spatial join to associate run out with source with points
