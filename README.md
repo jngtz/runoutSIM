@@ -40,5 +40,4 @@ remotes::install_github("jngtz/runoutSIM")
 ## Citation
 If you use runoutSIM in your research, please cite: 
 
-Goetz, J.: runoutSIM v1.0: An R package for regionally simulating landslide runout and connectivity using random walks, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2025-5160, 2026.
-
+Goetz, J.: runoutSIM v1.0: an R package for regionally simulating landslide runout and connectivity using random walks, Geosci. Model Dev., 19, 5709–5722, https://doi.org/10.5194/gmd-19-5709-2026, 2026.
