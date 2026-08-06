@@ -39,43 +39,17 @@ leafmap(
 
 \item{weight}{Line or border thickness for vector geometries. Defaults to \code{2}.}
 
-\item{palette}{Color palette name used with \code{leaflet::colorNumeric()} for raster coloring. Defaults to \code{"viridis"}. If categorical values, supply a list - e.g.  list(classes = 1, colors = "#99d2ff", labels = "Water"))}
+\item{palette}{Color palette name used with \code{leaflet::colorNumeric()} for raster coloring. Defaults to \code{"viridis"}. If categorical values, supply a list - e.g. list(classes = 1, colors = "#99d2ff", labels = "Water"))}
 
 \item{basemaps}{Character vector of tile provider names (from \code{leaflet::providers}) to include as base layers. Defaults to \code{c("Esri.WorldImagery", "Esri.WorldTopoMap")}.}
 
-\item{add_legend}{Logical to produce a legend or not. Defaults to \code{TRUE}. Also controls if raster value query appears.}
+\item{add_legend}{Logical to produce a legend or not. Defaults to \code{TRUE}.}
 
-\item{add_image_query}{Logical to add mouse hover query of raster values. Defaults to \code{TRUE}.}
+\item{add_image_query}{Logical to add mouse hover query of raster values. Defaults to \code{TRUE}. Independent of \code{add_legend}.}
 }
 \value{
 A \code{leaflet} map object with the data layer(s) and controls.
 }
 \description{
 Creates an interactive \code{leaflet} map from raster or \code{sf} vector data, with options to customize basemaps, styling, and popups.
-}
-\details{
-This function is designed to handle both standalone and piped usage. If the first argument is a raster or \code{sf} object and \code{data} is \code{NULL}, it automatically reassigns the input appropriately. It can visualize raster values with color palettes and legends, or render vector data (points, lines, polygons) with informative popups.
-\itemize{
-\item Raster data is projected to WGS84 (EPSG:4326) and colorized using a continuous palette.
-\item Vector data supports POINT, LINESTRING, and POLYGON geometries.
-\item Attributes are displayed in scrollable popups if there are many fields.
-\item The function adds scale bars, measurement tools, and layer controls.
-\item add_image_query can make the file size of the leaflet html widget very large
-e.g. up to 20x's larger. It is recommended to have it = \code{FALSE} when exporting
-as a Web Page or html widget.
-}
-}
-\examples{
-\dontrun{
-library(leaflet)
-library(sf)
-library(raster)
-# From scratch
-leafmap(data = st_read(system.file("shape/nc.shp", package = "sf")))
-
-# Add to existing map
-m <- leaflet()
-leafmap(m, st_read(system.file("shape/nc.shp", package = "sf")))
-}
-
 }

@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+
+knitr::opts_knit$set(root.dir = "/Users/jgoetz/sda/gitProjects/runoutSIM/")
 ```
 
 # Introduction
@@ -37,7 +39,7 @@ library(terra)
 library(sf)
 
 # Load digital elevation model (DEM)
-dem <- rast("../data/elev_fillsinks_WangLiu.tif")
+dem <- rast("Data/elev_fillsinks_WangLiu.tif")
 
 # Compute hillshade for visualization 
 slope <- terrain(dem, "slope", unit="radians")
@@ -45,8 +47,8 @@ aspect <- terrain(dem, "aspect", unit="radians")
 hill <- round(shade(slope, aspect, 40, 270, normalize = TRUE))
 
 # Load debris flow runout source points and polygons
-source_points <- st_read("../data/debris_flow_source_points.shp")
-runout_polygons <- st_read("../data/debris_flow_runout_polygons.shp")
+source_points <- st_read("Data/debris_flow_source_points.shp")
+runout_polygons <- st_read("Data/debris_flow_runout_polygons.shp")
 
 # Plot input data
 plot(hill, col=grey(150:255/255), legend=FALSE,
@@ -69,7 +71,7 @@ We now parallelize the simulations using `parLapply()`. Before doing so, we **wr
 library(parallel)
 
 # Define number of cores to use
-n_cores <- detectCores() -2
+n_cores <- 2
 
 # Pack the DEM so it can be passed over a serialized connection
 packed_dem <- wrap(dem)

@@ -7,7 +7,7 @@ knitr::opts_chunk$set(
 
 ## ----fig.show='hold'----------------------------------------------------------
 # load packages
-library(runoutSim)
+library(runoutSIM)
 library(terra)
 library(sf)
 

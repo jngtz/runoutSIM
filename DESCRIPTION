@@ -19,12 +19,13 @@ Imports:
     raster,
     sf,
     methods,
+    magrittr
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 BugReports: https://github.com/jngtz/runoutSIM/issues
-RoxygenNote: 7.3.2
 Suggests: 
     knitr,
     rmarkdown, 
     viridis
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0
