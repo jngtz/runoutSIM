@@ -12,11 +12,13 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  screenshot.force = TRUE,   # Force static screenshots for widgets
+  fig.retina = 1,            # Keep PNG image file sizes small
+  dpi = 96                   # Standard web resolution
 )
 
 knitr::opts_knit$set(root.dir = here::here())
-
 ```
 
 # Introduction
@@ -62,7 +64,7 @@ Using the `leafmap()` function, we can quickly create an interactive leaflet map
 
 **Tip:** `leafmap()` has the option to show raster values when you hover your mouse over the map. This option is turned on by default, but can result in a considerable increase in the file size of the leaflet widget (e.g. when exported for sharing). It is recommended to have `add_image_query = FALSE` when saving / exporting the leaflet map.
 
-```{r, fig.show='hold', out.width="100%", out.height="500px"}
+```{r, fig.show='hold', fig.width=8, fig.height=5}
 map <- leafmap(bnd_catchment, color = '#f7f9f9', fill_color = '#FF000000', weight = 4) %>%
     leafmap(runout_polygons) %>%
     leafmap(source_points, color = '#e74c3c') %>%
@@ -219,7 +221,7 @@ To simulate runout from multiple source cell locations, we run `runoutSim()` ite
 
 To create a list of xy coordinates from source points (vector), we use the `makeSourceList()` function.
 
-```{r, fig.show='hold', out.width="100%", out.height="500px"}
+```{r, fig.show='hold', fig.width=8, fig.height=5}
 # Get coordinates of source points to create a source list object
 source_l <- makeSourceList(source_points)
 
@@ -269,7 +271,7 @@ plot(vel_ms, col = map.pal("plasma"), add = TRUE, alpha = 0.7)
 
 We can also view the results through an interactive leaflet map.
 
-```{r, fig.show='hold', out.width="100%", out.height="500px"}
+```{r, ffig.show='hold', fig.width=8, fig.height=5}
 
 # Create interactive leaflet map
 sim_map <- 

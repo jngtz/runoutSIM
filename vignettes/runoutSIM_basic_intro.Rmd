@@ -13,10 +13,12 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
+  #screenshot.force = TRUE,   # Force static screenshots for widgets
+  #fig.retina = 1,            # Keep PNG image file sizes small
+  #dpi = 96                   # Standard web resolution
 )
 
-knitr::opts_knit$set(root.dir = "/Users/jgoetz/sda/gitProjects/runoutSIM/")
-
+knitr::opts_knit$set(root.dir = here::here())
 ```
 
 # Introduction

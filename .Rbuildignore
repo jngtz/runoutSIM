@@ -1,6 +1,7 @@
 ^runoutSim\.Rproj$
 ^\.Rproj\.user$
 ^Data$
+^vignettes_static$
 ^Demo$
 ^Dev$
 ^Case_Study$
@@ -11,3 +12,4 @@
 ^pkgdown$
 ^README.md
 ^\.github$
+^vignettes\.Rmd$

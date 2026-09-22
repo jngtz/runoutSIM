@@ -4,7 +4,7 @@ author: "Jason Goetz"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Parallel computing with runoutSIM}
+  %\VignetteIndexEntry{Grid search optimization of runoutSIM with runoptGPP}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,9 +12,10 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>")
-library(here)
-knitr::opts_knit$set(root.dir = here())
+  comment = "#>"
+)
+
+knitr::opts_knit$set(root.dir = "/Users/jgoetz/sda/gitProjects/runoutSIM/")
 ```
 
 # Introduction
@@ -51,7 +52,7 @@ We begin by loading the required packages, a digital elevation model (DEM), and 
 
 ```{r, message=FALSE, results='hide', fig.show='hold', fig.height=7, fig.width = 5, fig.align='center'}
 # load packages
-library(runoutSim)
+library(runoutSIM)
 library(runoptGPP)
 library(terra)
 library(sf)
@@ -123,7 +124,7 @@ doParallel::registerDoParallel(cl)
 dem <- raster(dem)
 
 rw_gridsearch_multi  <-
-  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSIM')) %dopar% {
     
     rwGridsearch(dem, slide_plys = runout_polygons, slide_src = source_points,
                  slide_id = poly_id, slp_v = rwslp_vec, ex_v = rwexp_vec, 
@@ -140,7 +141,7 @@ parallel::stopCluster(cl)
 We extract the optimal parameters across all runouts by aggregating their performance (here, using the median AUROC).
 
 ```{r, include = FALSE}
-load("Data\\rw_gridsearch_multi.Rd")
+load("Data/rw_gridsearch_multi.Rd")
 ```
 
 
@@ -179,7 +180,7 @@ cl <- parallel::detectCores() -2
 doParallel::registerDoParallel(cl)
 
 pcm_gridsearch_multi <-
-  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSim')) %dopar% {
+  foreach(poly_id=polyid_vec, .packages=c('terra','raster', 'ROCR', 'sf', 'runoptGPP', 'runoutSIM')) %dopar% {
     
     pcmGridsearch(dem,
                   slide_plys = runout_polygons, slide_src = source_points, 
@@ -198,7 +199,7 @@ parallel::stopCluster(cl)
 We find the PCM parameter set that results in the **lowest median relative error** across all simulated runouts. This gives us a regionally optimized distance model. The median model performances across grid search space can be visualized using `plot_opt=TRUE`.
 
 ```{r, include = FALSE}
-load("Data\\pcm_gridsearch_multi.Rd")
+load("Data/pcm_gridsearch_multi.Rd")
 ```
 
 ```{r, warning=FALSE, fig.show='hold', fig.height=4, fig.width = 7, fig.align='center'}
