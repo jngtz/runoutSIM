@@ -358,7 +358,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
       if(is_sp_md){
         md_in <-  md[d[nxt_cell,][1], d[nxt_cell,][2]]
       } else {
-        md_in <- mu
+        md_in <- md
       }
       
       # calculate walk velocity for this instance
