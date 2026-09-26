@@ -176,6 +176,7 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   
   # Check if mu is single value or spatial varying (raster)
   is_sp_mu <- methods::is(mu, "SpatRaster")
+  is_sp_md <- methods::is(md, "SpatRaster")
   
   # Get row and column of the start cell in the DEM raster
   rw <- terra::rowFromY(dem, xy[2])
@@ -198,6 +199,10 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
   
   if(is_sp_mu){
     mu <- terra::as.matrix(mu, wide=TRUE) 
+  }
+  
+  if(is_sp_md){
+    md <- terra::as.matrix(md, wide=TRUE) 
   }
   
   #---Random Walk Iterations---
@@ -349,8 +354,15 @@ runoutSim <- function(dem, xy, mu = 0.1, md = 40, int_vel = 1, slp_thresh = 30, 
         mu_in <- mu
       }
       
+      # Change to spatial varying mass-drag ratio if md is supplied as a raster
+      if(is_sp_md){
+        md_in <-  md[d[nxt_cell,][1], d[nxt_cell,][2]]
+      } else {
+        md_in <- mu
+      }
+      
       # calculate walk velocity for this instance
-      v_i <- pcm(mu = mu_in, md = md, v_p = v_p, theta_p = theta_p, theta_i = beta_ngh[nxt_cell == cells], l = cell_dist[nxt_cell])
+      v_i <- pcm(mu = mu_in, md = md_in, v_p = v_p, theta_p = theta_p, theta_i = beta_ngh[nxt_cell == cells], l = cell_dist[nxt_cell])
       
       # record velocity
       vel_cells[[i]] <- v_i
