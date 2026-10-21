@@ -37,7 +37,7 @@ remotes::install_github("jngtz/runoutSIM")
 [Optimizing runoutSIM parameters with runoptGPP](https://jngtz.github.io/runoutSIM/articles/runoutSIM_optimize_w_runoptGPP.html)
 
 ## Short methods overview
-[EGU 2026 - runoutSIM – An R package for regional debris-flow runout and source-area connectivity simulation](https://github.com/jngtz/runoutSIM/blob/main/Data/EGU_2026_Goetz_runoutSIM.pdf))
+[EGU 2026 - runoutSIM – An R package for regional debris-flow runout and source-area connectivity simulation](https://github.com/jngtz/runoutSIM/blob/main/Data/EGU_2026_Goetz_runoutSIM.pdf)
 
 ## Citation
 If you use runoutSIM in your research, please cite: 
